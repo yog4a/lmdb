@@ -1,4 +1,5 @@
-import type { RootDatabase, RootDatabaseOptions, DatabaseOptions, Key, TransactionFlags } from 'lmdb';
+import type { RootDatabase, Key, TransactionFlags } from 'lmdb';
+import type { StoreManagerDatabaseOptions, StoreManagerPartitionOptions } from './types.js';
 import { StorePartitionManager } from './StorePartitionManager.js';
 import { open } from 'lmdb';
 
@@ -24,8 +25,8 @@ export class StoreManager<K extends Key = Key, V = any> {
      * @param partitionOptions - Default options for new sub-database partitions
      */
     constructor(
-        private readonly databaseOptions: RootDatabaseOptions & { path: string },
-        private readonly partitionOptions: Omit<DatabaseOptions, 'name'>
+        private readonly databaseOptions: StoreManagerDatabaseOptions,
+        private readonly partitionOptions: StoreManagerPartitionOptions,
     ) {
         // Open (or create) the root database environment
         this.database = open(this.databaseOptions);
