@@ -82,6 +82,18 @@ export class LMDBmap<V = any> {
     }
 
     /**
+     * Remove all entries from the database.
+     * @param confirm - Whether to confirm the action.
+     */
+    public clear(confirm: boolean = false): void {
+        if (confirm) {
+            this.database.clearSync();
+        } else {
+            throw new Error('Are you sure you want to clear the database? This action is irreversible.');
+        }
+    }
+
+    /**
      * Get the total number of entries in the database, optionally filtered by range.
      * @param options - (Optional) Range options to restrict the count.
      * @returns The number of matching entries.
