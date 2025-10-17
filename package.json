@@ -1,0 +1,59 @@
+{
+  "name": "@yog4a/lmdb",
+  "description": "Personal encapsulation module for lmdb",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yog4a/lmdb.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yog4a/lmdb/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup",
+    "build:patch": "pnpm version patch && tsup",
+    "build:minor": "pnpm version minor && tsup",
+    "build:major": "pnpm version major && tsup",
+    "version:patch": "pnpm version patch",
+    "version:minor": "pnpm version minor",
+    "version:major": "pnpm version major",
+    "update": "pnpm up --latest",
+    "publish:npm": "pnpm publish --registry https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.2",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "lmdb": "^3.4.3"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "import": "./dist/core.mjs",
+      "require": "./dist/core.cjs",
+      "default": "./dist/core.mjs"
+    },
+    "./modules": {
+      "types": "./dist/modules.d.ts",
+      "import": "./dist/modules.mjs",
+      "require": "./dist/modules.cjs",
+      "default": "./dist/modules.mjs"
+    }
+  }
+}
