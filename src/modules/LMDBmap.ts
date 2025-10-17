@@ -11,7 +11,6 @@ export class LMDBmap<V = any> {
 
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
-     *
      * @param path - Filesystem directory for the LMDB environment.
      */
     constructor(
@@ -86,11 +85,10 @@ export class LMDBmap<V = any> {
      * @param confirm - Whether to confirm the action.
      */
     public clear(confirm: boolean = false): void {
-        if (confirm) {
-            this.database.clearSync();
-        } else {
+        if (confirm !== true) {
             throw new Error('Are you sure you want to clear the database? This action is irreversible.');
         }
+        this.database.clearSync();
     }
 
     /**
