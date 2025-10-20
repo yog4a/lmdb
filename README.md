@@ -1,4 +1,4 @@
-# @yog4a/lmdb
+# Yog4a | lmdb
 
 A personal encapsulation module for [LMDB](https://github.com/kriszyp/lmdb-js), providing enhanced functionality.
 
