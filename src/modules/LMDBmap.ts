@@ -19,13 +19,13 @@ export class LMDBmap<V = any> {
         // Open the LMDB root environment (creating it if it doesn't exist)
         this.database = open({
             path: this.path,                // Directory for LMDB environment files
-            maxDbs: 5,                      // Maximum number of sub-databases allowed
-            maxReaders: 10,                 // Maximum allowed concurrent readers
+            maxDbs: 1,                      // Maximum number of sub-databases allowed
+            maxReaders: 1,                  // Maximum allowed concurrent readers
             mapSize: 4 * 1024 ** 3,         // Initial maximum database size (4 GiB); grows if remapChunks is true
+            remapChunks: true,              // Enable dynamic map size expansion as needed
             pageSize: 4096,                 // Memory page size (4096 bytes is usually optimal)
             noMemInit: true,                // Skip memory pre-initialization for improved performance (safe)
             commitDelay: 50,                // Delay transactions up to 50ms to batch disk writes
-            remapChunks: true,              // Enable dynamic map size expansion as needed
             eventTurnBatching: true,        // Batch multiple async writes within a single event loop tick
             noSync: false,                  // Run fsync on commit for crash durability
             noMetaSync: true,               // Skip metadata fsync for faster writes (small risk on power loss)
