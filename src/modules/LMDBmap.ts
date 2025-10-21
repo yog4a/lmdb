@@ -1,13 +1,16 @@
 import type { RootDatabase, RangeOptions, RangeIterable } from 'lmdb';
 import { open } from 'lmdb';
 
+/** Types */
+export type LMDBkey = string | number | (string | number)[];
+
 /**
  * LMDBmap provides a high-level map-like interface over an LMDB root database.
  * All entries are stored in the root database (not using sub-databases).
  */
-export class LMDBmap<V = any> {
+export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
     /** The underlying LMDB root database instance */
-    public readonly database: RootDatabase<V, string>;
+    public readonly database: RootDatabase<V, K>;
 
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
@@ -21,6 +24,9 @@ export class LMDBmap<V = any> {
             path: this.path,                // Directory for LMDB environment files
             maxDbs: 1,                      // Maximum number of sub-databases allowed
             maxReaders: 1,                  // Maximum allowed concurrent readers
+            keyEncoding: "ordered-binary",  // Ordered binary encoding for keys
+            encoding: "json",               // Values are encoded/decoded as JSON
+            compression: false,             // Disable value compression
             mapSize: 4 * 1024 ** 3,         // Initial maximum database size (4 GiB); grows if remapChunks is true
             remapChunks: true,              // Enable dynamic map size expansion as needed
             pageSize: 4096,                 // Memory page size (4096 bytes is usually optimal)
@@ -29,8 +35,6 @@ export class LMDBmap<V = any> {
             eventTurnBatching: true,        // Batch multiple async writes within a single event loop tick
             noSync: false,                  // Run fsync on commit for crash durability
             noMetaSync: true,               // Skip metadata fsync for faster writes (small risk on power loss)
-            encoding: "json",               // Values are encoded/decoded as JSON
-            compression: false,             // Disable value compression
             cache: true,                    // Enable small in-memory cache for hot keys
             overlappingSync: false,         // Use standard LMDB sync (don't overlap syncs for more throughput)
         });
@@ -46,7 +50,7 @@ export class LMDBmap<V = any> {
      * @param key - The key to check for existence.
      * @returns true if the key is present, false otherwise.
      */
-    public has(key: string): boolean {
+    public has(key: K): boolean {
         return this.database.doesExist(key);
     }
 
@@ -56,7 +60,7 @@ export class LMDBmap<V = any> {
      * @param options - (Optional) Additional get options (e.g., transaction)
      * @returns The value associated with the key, or undefined if not present.
      */
-    public get(key: string): V | undefined {
+    public get(key: K): V | undefined {
         return this.database.get(key);
     }
 
@@ -66,7 +70,7 @@ export class LMDBmap<V = any> {
      * @param value - Value to associate with the key.
      * @param options - (Optional) Additional put options.
      */
-    public set(key: string, value: V): void {
+    public set(key: K, value: V): void {
         return this.database.putSync(key, value);
     }
 
@@ -76,7 +80,7 @@ export class LMDBmap<V = any> {
      * @param valueToRemove - (Optional) Only remove if value matches (for dupSort databases).
      * @returns true if an entry was deleted, false if not found.
      */
-    public del(key: string): boolean {
+    public del(key: K): boolean {
         return this.database.removeSync(key);
     }
 
@@ -105,7 +109,7 @@ export class LMDBmap<V = any> {
      * @param options - (Optional) Range options (start, end, reverse, etc.).
      * @returns Iterable of keys as strings.
      */
-    public keys(options?: RangeOptions): RangeIterable<string> {
+    public keys(options?: RangeOptions): RangeIterable<K> {
         return this.database.getKeys(options);
     }
 
@@ -114,7 +118,7 @@ export class LMDBmap<V = any> {
      * @param options - (Optional) Range options to filter or order entries.
      * @returns Iterable of { key, value } objects.
      */
-    public entries(options?: RangeOptions): RangeIterable<{ key: string, value: V }> {  
+    public entries(options?: RangeOptions): RangeIterable<{ key: K, value: V }> {  
         return this.database.getRange(options);
     }
 
