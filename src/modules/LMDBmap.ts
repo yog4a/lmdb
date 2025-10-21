@@ -21,26 +21,27 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
     ) {
         // Open the LMDB root environment (creating it if it doesn't exist)
         this.database = open({
-            path: this.path,                // Directory for LMDB environment files
-            maxDbs: 1,                      // Maximum number of sub-databases allowed
-            maxReaders: 1,                  // Maximum allowed concurrent readers
-            keyEncoding: "ordered-binary",  // Ordered binary encoding for keys
-            encoding: "json",               // Values are encoded/decoded as JSON
-            compression: false,             // Disable value compression
-            mapSize: 4 * 1024 ** 3,         // Initial maximum database size (4 GiB); grows if remapChunks is true
-            remapChunks: true,              // Enable dynamic map size expansion as needed
-            pageSize: 4096,                 // Memory page size (4096 bytes is usually optimal)
-            noMemInit: true,                // Skip memory pre-initialization for improved performance (safe)
-            commitDelay: 50,                // Delay transactions up to 50ms to batch disk writes
-            eventTurnBatching: true,        // Batch multiple async writes within a single event loop tick
-            noSync: false,                  // Run fsync on commit for crash durability
-            noMetaSync: true,               // Skip metadata fsync for faster writes (small risk on power loss)
-            cache: true,                    // Enable small in-memory cache for hot keys
-            overlappingSync: false,         // Use standard LMDB sync (don't overlap syncs for more throughput)
+            path: this.path,                // Filesystem path for LMDB environment storage
+            maxDbs: 1,                      // Only use the root database; no additional sub-databases needed
+            maxReaders: 64,                 // Supports up to 64 simultaneous read transactions
+            keyEncoding: "ordered-binary",  // Ensures keys are ordered binary for efficient range scans and correct key ordering
+            encoding: "json",               // Store and retrieve values as JSON (automatic serialization/deserialization)
+            compression: false,             // Compression disabled for best write and read performance
+            mapSize: 512 * 1024 ** 2,       // Preallocate 512 MiB virtual address space for fast and scalable growth
+            remapChunks: true,              // Let LMDB automatically expand the map size if needed
+            pageSize: 4096,                 // Use standard 4 KB OS page size for optimal compatibility and IO
+            noMemInit: true,                // Skip memory zeroing for new pages to accelerate allocation (safe in LMDB)
+            commitDelay: 50,                // Batch commit operations up to 50 ms to increase throughput under load
+            eventTurnBatching: true,        // Group multiple async writes in an event loop tick for optimal efficiency
+            noSync: true,                   // Disable fsync calls for much faster writes (at the cost of durability on crash)
+            noMetaSync: true,               // Skip syncing metadata to further boost write speed (lowers durability)
+            cache: true,                    // Enable small built-in key/value cache to speed up hot key access
+            overlappingSync: false,         // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
         });
 
         // Scan for and remove leftover reader locks (recommended on startup)
         this.database.readerCheck();
+        setInterval(() => this.database.readerCheck(), 60_000 * 10); // every 10 min
     }
 
     // ======== Map-like API Methods ========
