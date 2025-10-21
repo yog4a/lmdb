@@ -1,4 +1,4 @@
-import type { RootDatabase, RangeOptions, RangeIterable } from 'lmdb';
+import type { RootDatabase, RangeOptions, RangeIterable, RootDatabaseOptions } from 'lmdb';
 import { open } from 'lmdb';
 
 /** Types */
@@ -15,9 +15,11 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
+     * @param options - (Optional) Override default options for the LMDB root environment.
      */
     constructor(
         private readonly path: string,
+        private readonly options: Omit<RootDatabaseOptions, "path"> = {},
     ) {
         // Open the LMDB root environment (creating it if it doesn't exist)
         this.database = open({
@@ -37,6 +39,7 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
             noMetaSync: true,               // Skip syncing metadata to further boost write speed (lowers durability)
             cache: true,                    // Enable small built-in key/value cache to speed up hot key access
             overlappingSync: false,         // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
+            ...this.options,
         });
 
         // Scan for and remove leftover reader locks (recommended on startup)
