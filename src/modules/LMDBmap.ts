@@ -104,8 +104,8 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
      * @param fn - The function to execute with transaction context.
      * @returns The result of the provided function.
      */
-    public transaction<T>(fn: () => T): T {
-        return this.database.transactionSync(fn);
+    public transaction<T>(fn: () => T): Promise<T> {
+        return this.database.transaction(fn);
     }
 
     /**
