@@ -100,6 +100,15 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
     }
 
     /**
+     * Run a function within a database transaction.
+     * @param fn - The function to execute with transaction context.
+     * @returns The result of the provided function.
+     */
+    public transaction<T>(fn: () => T): T {
+        return this.database.transactionSync(fn);
+    }
+
+    /**
      * Get the total number of entries in the database, optionally filtered by range.
      * @param options - (Optional) Range options to restrict the count.
      * @returns The number of matching entries.
