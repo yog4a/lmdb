@@ -3,6 +3,7 @@ import { open } from 'lmdb';
 
 /** Types */
 export type LMDBkey = string | number | (string | number)[];
+export type LMDBmapOptions = Omit<RootDatabaseOptions, "path">;
 
 /**
  * LMDBmap provides a high-level map-like interface over an LMDB root database.
