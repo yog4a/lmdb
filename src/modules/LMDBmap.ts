@@ -74,25 +74,8 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
      * @param keys - Keys whose values to fetch.
      * @returns A promise that resolves to an array of values, or undefined if not present.
      */
-    public getMany(keys: K[]): Promise<Map<K, V>> {
-        return (async () => {
-            const map = new Map<K, V>();
-            const values = await this.database.getMany(keys);
-            
-            if (values.length !== keys.length) {
-                throw new Error('Not all keys were found');
-            }
-
-            for (let i = 0; i < keys.length; i++) {
-                const key = keys[i]!;
-                const value = values[i];
-
-                if (value) {
-                    map.set(key, value);
-                }
-            }
-            return map;
-        })();
+    public getMany(keys: K[]): Promise<(V | undefined)[]> {
+        return this.database.getMany(keys);
     }
 
     /**
