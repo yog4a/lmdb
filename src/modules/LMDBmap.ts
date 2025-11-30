@@ -12,7 +12,7 @@ import { open } from 'lmdb';
 export type LMDBMapKey = string | number | (string | number)[];
 
 /** LMDB map options type */
-export type LMDBMapOptions = Omit<RootDatabaseOptions, "path" | "readOnly">;
+export type LMDBMapOptions = Omit<RootDatabaseOptions, "path">;
 
 /** LMDB map class types */
 export type LMDBMapReadable<K extends LMDBMapKey = LMDBMapKey, V = any> = Omit<LMDBMap<K, V>, "set" | "del" | "clear" | "transaction">;
@@ -24,6 +24,8 @@ export type LMDBMapWritable<K extends LMDBMapKey = LMDBMapKey, V = any> = LMDBMa
 export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
     /** The underlying LMDB root database instance */
     public readonly database: RootDatabase<V, K>;
+    /** LMDB map options */
+    public readonly options: RootDatabaseOptions;
     /** Timer for reader check */
     private readerCheckTimer: NodeJS.Timeout | null = null;
 
@@ -35,12 +37,10 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      */
     constructor(
         private readonly path: string,
-        private readonly options: LMDBMapOptions = {},
-        private readonly readOnly: boolean = true,
+        options: LMDBMapOptions = {},
     ) {
-        // Open the LMDB root environment (creating it if it doesn't exist)
-        this.database = open({
-            path: this.path,                // Filesystem path for LMDB environment storage
+        // Default options
+        this.options = {
             maxDbs: 1,                      // Only use the root database; no additional sub-databases needed
             maxReaders: 256,                // Supports up to 256 simultaneous read transactions
             keyEncoding: "ordered-binary",  // Ensures keys are ordered binary for efficient range scans and correct key ordering
@@ -56,8 +56,14 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
             noMetaSync: true,               // Skip syncing metadata to further boost write speed (lowers durability)
             cache: true,                    // Enable small built-in key/value cache to speed up hot key access
             overlappingSync: false,         // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
+            readOnly: true,                 // Set read-only mode by default
+            ...options,
+        };
+
+        // Open the LMDB root environment (creating it if it doesn't exist)
+        this.database = open({
+            path: this.path,                // Filesystem path for LMDB environment storage
             ...this.options,
-            readOnly: this.readOnly,         // Set read-only mode if specified
         });
 
         // Scan for and remove leftover reader locks (recommended on startup)
@@ -160,7 +166,7 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @param options - (Optional) Additional put options.
      */
     public set(key: K, value: V): void {
-        if (this.readOnly) {
+        if (this.options.readOnly) {
             throw new Error('Cannot perform set on a read-only database.');
         }
         return this.database.putSync(key, value);
@@ -173,7 +179,7 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @returns true if an entry was deleted, false if not found.
      */
     public del(key: K): boolean {
-        if (this.readOnly) {
+        if (this.options.readOnly) {
             throw new Error('Cannot perform delete on a read-only database.');
         }
         return this.database.removeSync(key);
@@ -184,7 +190,7 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @param confirm - Whether to confirm the action.
      */
     public clear(confirm: boolean = false): void {
-        if (this.readOnly) {
+        if (this.options.readOnly) {
             throw new Error('Cannot perform clear on a read-only database.');
         }
         if (confirm !== true) {
@@ -199,7 +205,7 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @returns The result of the provided function.
      */
     public transaction<T>(fn: () => T): Promise<T> {
-        if (this.readOnly) {
+        if (this.options.readOnly) {
             throw new Error('Cannot perform transactions on a read-only database.');
         }
         return this.database.transaction(fn);
