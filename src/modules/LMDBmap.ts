@@ -1,32 +1,48 @@
+/**
+ * LMDBMap provides a high-level map-like interface over an LMDB root database.
+ * All entries are stored in the root database (not using sub-databases).
+ */
 import type { RootDatabase, RangeOptions, RangeIterable, RootDatabaseOptions } from 'lmdb';
 import { open } from 'lmdb';
 
-/** Types */
-export type LMDBkey = string | number | (string | number)[];
-export type LMDBmapOptions = Omit<RootDatabaseOptions, "path">;
+// Types
+// ===========================================================
 
-/**
- * LMDBmap provides a high-level map-like interface over an LMDB root database.
- * All entries are stored in the root database (not using sub-databases).
- */
-export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
+/** LMDB Key type */
+export type LMDBMapKey = string | number | (string | number)[];
+
+/** LMDB map options type */
+export type LMDBMapOptions = Omit<RootDatabaseOptions, "path" | "readOnly">;
+
+/** LMDB map class types */
+export type LMDBMapReadable<K extends LMDBMapKey = LMDBMapKey, V = any> = Omit<LMDBMap<K, V>, "set" | "del" | "clear" | "transaction">;
+export type LMDBMapWritable<K extends LMDBMapKey = LMDBMapKey, V = any> = LMDBMap<K, V>;
+
+// Class
+// ===========================================================
+
+export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
     /** The underlying LMDB root database instance */
     public readonly database: RootDatabase<V, K>;
+    /** Timer for reader check */
+    private readerCheckTimer: NodeJS.Timeout | null = null;
 
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
      * @param options - (Optional) Override default options for the LMDB root environment.
+     * @param readOnly - Whether the database should be opened in read-only mode (default: true).
      */
     constructor(
         private readonly path: string,
-        private readonly options: Omit<RootDatabaseOptions, "path"> = {},
+        private readonly options: LMDBMapOptions = {},
+        private readonly readOnly: boolean = true,
     ) {
         // Open the LMDB root environment (creating it if it doesn't exist)
         this.database = open({
             path: this.path,                // Filesystem path for LMDB environment storage
             maxDbs: 1,                      // Only use the root database; no additional sub-databases needed
-            maxReaders: 64,                 // Supports up to 64 simultaneous read transactions
+            maxReaders: 256,                // Supports up to 256 simultaneous read transactions
             keyEncoding: "ordered-binary",  // Ensures keys are ordered binary for efficient range scans and correct key ordering
             encoding: "json",               // Store and retrieve values as JSON (automatic serialization/deserialization)
             compression: false,             // Compression disabled for best write and read performance
@@ -41,11 +57,11 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
             cache: true,                    // Enable small built-in key/value cache to speed up hot key access
             overlappingSync: false,         // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
             ...this.options,
+            readOnly: this.readOnly,         // Set read-only mode if specified
         });
 
         // Scan for and remove leftover reader locks (recommended on startup)
-        this.database.readerCheck();
-        setInterval(() => this.database.readerCheck(), 60_000 * 10); // every 10 min
+        this.readerCheck();
     }
 
     // ======== Map-like API Methods ========
@@ -79,46 +95,6 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
     }
 
     /**
-     * Insert a new value or update the value for the given key.
-     * @param key - Key to insert or update.
-     * @param value - Value to associate with the key.
-     * @param options - (Optional) Additional put options.
-     */
-    public set(key: K, value: V): void {
-        return this.database.putSync(key, value);
-    }
-
-    /**
-     * Remove an entry by key (or a specific value if using duplicate keys).
-     * @param key - Key whose entry to remove.
-     * @param valueToRemove - (Optional) Only remove if value matches (for dupSort databases).
-     * @returns true if an entry was deleted, false if not found.
-     */
-    public del(key: K): boolean {
-        return this.database.removeSync(key);
-    }
-
-    /**
-     * Remove all entries from the database.
-     * @param confirm - Whether to confirm the action.
-     */
-    public clear(confirm: boolean = false): void {
-        if (confirm !== true) {
-            throw new Error('Are you sure you want to clear the database? This action is irreversible.');
-        }
-        this.database.clearSync();
-    }
-
-    /**
-     * Run a function within a database transaction.
-     * @param fn - The function to execute with transaction context.
-     * @returns The result of the provided function.
-     */
-    public transaction<T>(fn: () => T): Promise<T> {
-        return this.database.transaction(fn);
-    }
-
-    /**
      * Get the total number of entries in the database, optionally filtered by range.
      * @param options - (Optional) Range options to restrict the count.
      * @returns The number of matching entries.
@@ -134,6 +110,15 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
      */
     public keys(options?: RangeOptions): RangeIterable<K> {
         return this.database.getKeys(options);
+    }
+
+    /** 
+     * Return an iterable over all values, optionally filtered and/or ordered.
+     * @param options - (Optional) Range options (start, end, reverse, etc.).
+     * @returns Iterable of values.
+     */
+    public values(options?: RangeOptions): RangeIterable<V> {
+        return this.database.getRange(options).map(entry => entry.value);
     }
 
     /**
@@ -155,9 +140,93 @@ export class LMDBmap<K extends LMDBkey = LMDBkey, V = any> {
 
     /**
      * Close the database and release all resources.
+     * This will also clear the reader check timer.
      * @returns A promise that resolves when the database is closed.
      */
-    public async close(): Promise<void> {
-        await this.database.close();
+    public close(): Promise<void> {
+        if (this.readerCheckTimer) {
+            clearInterval(this.readerCheckTimer);
+            this.readerCheckTimer = null;
+        }
+        return this.database.close();
+    }
+
+    // ======== Write API (only reachable via WritableLMDBmap) ========
+
+    /**
+     * Insert a new value or update the value for the given key.
+     * @param key - Key to insert or update.
+     * @param value - Value to associate with the key.
+     * @param options - (Optional) Additional put options.
+     */
+    public set(key: K, value: V): void {
+        if (this.readOnly) {
+            throw new Error('Cannot perform set on a read-only database.');
+        }
+        return this.database.putSync(key, value);
+    }
+
+    /**
+     * Remove an entry by key (or a specific value if using duplicate keys).
+     * @param key - Key whose entry to remove.
+     * @param valueToRemove - (Optional) Only remove if value matches (for dupSort databases).
+     * @returns true if an entry was deleted, false if not found.
+     */
+    public del(key: K): boolean {
+        if (this.readOnly) {
+            throw new Error('Cannot perform delete on a read-only database.');
+        }
+        return this.database.removeSync(key);
+    }
+
+    /**
+     * Remove all entries from the database.
+     * @param confirm - Whether to confirm the action.
+     */
+    public clear(confirm: boolean = false): void {
+        if (this.readOnly) {
+            throw new Error('Cannot perform clear on a read-only database.');
+        }
+        if (confirm !== true) {
+            throw new Error('Set confirm to true to clear the database! This action is irreversible.');
+        }
+        this.database.clearSync();
+    }
+
+    /**
+     * Run a function within a database transaction.
+     * @param fn - The function to execute with transaction context. Must be synchronous. Do NOT `await` inside it!
+     * @returns The result of the provided function.
+     */
+    public transaction<T>(fn: () => T): Promise<T> {
+        if (this.readOnly) {
+            throw new Error('Cannot perform transactions on a read-only database.');
+        }
+        return this.database.transaction(fn);
+    }
+
+    // ======== Private Methods ========
+
+    /**
+     * Check for and remove stale reader locks.
+     */
+    private readerCheck(): void {
+        // Scan for and remove leftover reader locks (recommended on startup)
+        try {
+            this.database.readerCheck();
+        } catch {
+            // ignore if not supported or env not ready yet
+        }
+
+        // Periodic clean-up of reader locks (only useful for read-heavy envs)
+        if (!this.readerCheckTimer) {
+            this.readerCheckTimer = setInterval(() => {
+                try {
+                    this.database.readerCheck();
+                } catch {
+                    // ignore
+                }
+            }, 10 * 60_000);
+        }
     }
 }
