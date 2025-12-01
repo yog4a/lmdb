@@ -1,6 +1,7 @@
 import type { RootDatabase, Key, TransactionFlags } from 'lmdb';
 import type { StoreManagerDatabaseOptions, StoreManagerPartitionOptions } from './types.js';
 import { StorePartitionManager } from './StorePartitionManager.js';
+import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 import { open } from 'lmdb';
 
 /**
@@ -17,6 +18,9 @@ export class StoreManager<K extends Key = Key, V = any> {
     /** In-memory registry of open partitions, by name */
     private readonly partitions = new Map<string, StorePartitionManager<K, V>>();
 
+    /** Reader check manager */
+    private readonly readerCheckManager: ReaderCheckManager;
+
     /**
      * Constructs the StoreManager for a root LMDB environment.
      * Opens the root database and prepares the metadata partition.
@@ -32,7 +36,10 @@ export class StoreManager<K extends Key = Key, V = any> {
         this.database = open(this.databaseOptions);
 
         // Remove any stale reader locks to avoid locking issues
-        this.database.readerCheck();
+        this.readerCheckManager = new ReaderCheckManager(this.database, {
+            periodicMs: 15 * 60_000, // 15 minutes
+            initialCheck: true,
+        });
 
         // Open a reserved partition for metadata management; JSON-encoded, no compression
         this.metadata = new StorePartitionManager<string, any>(this.database, {
@@ -85,6 +92,9 @@ export class StoreManager<K extends Key = Key, V = any> {
      * Ensures all open sub-databases are closed before closing the root database.
      */
     public async closeAll(): Promise<void> {
+        if (this.readerCheckManager.isRunning()) {
+            this.readerCheckManager.stop();
+        }
         for (const partition of this.partitions.values()) {
             try { 
                 await partition.partition.close(); 

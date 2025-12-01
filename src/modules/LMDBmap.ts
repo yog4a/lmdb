@@ -4,6 +4,7 @@
  */
 import type { RootDatabase, RangeOptions, RangeIterable, RootDatabaseOptions } from 'lmdb';
 import { open } from 'lmdb';
+import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 
 // Types
 // ===========================================================
@@ -26,8 +27,8 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
     public readonly database: RootDatabase<V, K>;
     /** LMDB map options */
     public readonly options: RootDatabaseOptions;
-    /** Timer for reader check */
-    private readerCheckTimer: NodeJS.Timeout | null = null;
+    /** Reader check manager */
+    private readonly readerCheckManager: ReaderCheckManager;
 
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
@@ -67,7 +68,10 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
         });
 
         // Scan for and remove leftover reader locks (recommended on startup)
-        this.readerCheck();
+        this.readerCheckManager = new ReaderCheckManager(this.database, {
+            periodicMs: 15 * 60_000, // 15 minutes
+            initialCheck: true,
+        });
     }
 
     // ======== Map-like API Methods ========
@@ -150,9 +154,8 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @returns A promise that resolves when the database is closed.
      */
     public close(): Promise<void> {
-        if (this.readerCheckTimer) {
-            clearInterval(this.readerCheckTimer);
-            this.readerCheckTimer = null;
+        if (this.readerCheckManager.isRunning()) {
+            this.readerCheckManager.stop();
         }
         return this.database.close();
     }
@@ -209,30 +212,5 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
             throw new Error('Cannot perform transactions on a read-only database.');
         }
         return this.database.transaction(fn);
-    }
-
-    // ======== Private Methods ========
-
-    /**
-     * Check for and remove stale reader locks.
-     */
-    private readerCheck(): void {
-        // Scan for and remove leftover reader locks (recommended on startup)
-        try {
-            this.database.readerCheck();
-        } catch {
-            // ignore if not supported or env not ready yet
-        }
-
-        // Periodic clean-up of reader locks (only useful for read-heavy envs)
-        if (!this.readerCheckTimer) {
-            this.readerCheckTimer = setInterval(() => {
-                try {
-                    this.database.readerCheck();
-                } catch {
-                    // ignore
-                }
-            }, 10 * 60_000);
-        }
     }
 }
