@@ -23,13 +23,14 @@
     "manager"
   ],
   "scripts": {
+    "build": "tsup",
+    "release": "git push --follow-tags",
     "version:patch": "pnpm version patch",
     "version:minor": "pnpm version minor",
     "version:major": "pnpm version major",
-    "build:patch": "pnpm version patch && tsup",
-    "build:minor": "pnpm version minor && tsup",
-    "build:major": "pnpm version major && tsup",
-    "release": "git push --follow-tags",
+    "build:patch": "pnpm version patch && pnpm build",
+    "build:minor": "pnpm version minor && pnpm build",
+    "build:major": "pnpm version major && pnpm build",
     "update": "pnpm up --latest",
     "publish:npm": "pnpm publish --registry https://registry.npmjs.org/"
   },
