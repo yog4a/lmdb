@@ -7,6 +7,7 @@
     "declaration": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "declarationMap": false,
     "sourceMap": false,
     "types": ["node"],
     "newLine": "lf",
@@ -31,7 +32,6 @@
     "dist"
   ],
   "include": [
-    "src/**/*",
-    "tests/**/*"
+    "src/**/*"
   ]
 }

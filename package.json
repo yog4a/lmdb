@@ -2,6 +2,7 @@
   "name": "@yog4a/lmdb",
   "description": "Personal encapsulation module for lmdb",
   "version": "0.1.19",
+  "author": "Yog4a",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/yog4a/lmdb.git"
@@ -10,17 +11,25 @@
     "url": "https://github.com/yog4a/lmdb/issues"
   },
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "keywords": [
+    "lmdb",
+    "database",
+    "store",
+    "manager",
+    "partition",
+    "manager"
+  ],
   "scripts": {
-    "build": "tsup",
-    "build:patch": "pnpm version patch && tsup",
-    "build:minor": "pnpm version minor && tsup",
-    "build:major": "pnpm version major && tsup",
     "version:patch": "pnpm version patch",
     "version:minor": "pnpm version minor",
     "version:major": "pnpm version major",
+    "build:patch": "pnpm version patch && tsup",
+    "build:minor": "pnpm version minor && tsup",
+    "build:major": "pnpm version major && tsup",
+    "release": "git push --follow-tags",
     "update": "pnpm up --latest",
     "publish:npm": "pnpm publish --registry https://registry.npmjs.org/"
   },
@@ -34,7 +43,9 @@
     "lmdb": "^3.4.4"
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE.md",
+    "README.md"
   ],
   "exports": {
     ".": {
