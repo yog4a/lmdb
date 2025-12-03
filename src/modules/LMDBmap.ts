@@ -45,7 +45,7 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
             maxDbs: 1,                      // Only use the root database; no additional sub-databases needed
             maxReaders: 256,                // Supports up to 256 simultaneous read transactions
             keyEncoding: "ordered-binary",  // Ensures keys are ordered binary for efficient range scans and correct key ordering
-            encoding: "json",               // Store and retrieve values as JSON (automatic serialization/deserialization)
+            encoding: "msgpack",            // Store and retrieve values as JSON (automatic serialization/deserialization)
             compression: false,             // Compression disabled for best write and read performance
             mapSize: 512 * 1024 ** 2,       // Preallocate 512 MiB virtual address space for fast and scalable growth
             remapChunks: true,              // Let LMDB automatically expand the map size if needed
