@@ -10,7 +10,7 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
     public readonly name: string;
 
     /** The underlying LMDB Database instance for this partition */
-    public readonly partition: Database<PV, PK>;
+    public readonly instance: Database<PV, PK>;
 
     /**
      * Constructs a new StorePartitionManager for a given partition.
@@ -25,7 +25,7 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
         this.name = this.options.name;
 
         // Open or create the LMDB sub-database with provided options
-        this.partition = this.database.openDB<PV, PK>(this.options);
+        this.instance = this.database.openDB<PV, PK>(this.options);
     }
 
     // ======== Partition CRUD & Access Methods ========
@@ -36,7 +36,7 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      * @returns true if the key exists, false otherwise.
      */
     public has(key: PK): boolean {
-        return this.partition.doesExist(key);
+        return this.instance.doesExist(key);
     }
 
     /**
@@ -47,9 +47,9 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      */
     public get(key: PK, options?: GetOptions): PV | undefined {
         if (options) {
-            return this.partition.get(key, options);
+            return this.instance.get(key, options);
         } else {
-            return this.partition.get(key);
+            return this.instance.get(key);
         }
     }
 
@@ -61,9 +61,9 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      */
     public put(key: PK, value: PV, options?: PutOptions): void {
         if (options) {
-            this.partition.putSync(key, value, options);
+            this.instance.putSync(key, value, options);
         } else {
-            this.partition.putSync(key, value);
+            this.instance.putSync(key, value);
         }
     }
 
@@ -75,9 +75,9 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      */
     public del(key: PK, valueToRemove?: PV): boolean {
         if (valueToRemove) {
-            return this.partition.removeSync(key, valueToRemove);
+            return this.instance.removeSync(key, valueToRemove);
         } else {
-            return this.partition.removeSync(key);
+            return this.instance.removeSync(key);
         }
     }
 
@@ -86,7 +86,7 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      * @param options (Optional) Range options (start, end, reverse, etc)
      */
     public getKeys(options?: RangeOptions): RangeIterable<PK> {
-        return this.partition.getKeys(options);
+        return this.instance.getKeys(options);
     }
 
     /**
@@ -94,7 +94,7 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      * @param options Range options to select or order entries.
      */
     public getRange(options: RangeOptions): RangeIterable<{ key: PK, value: PV }> {  
-        return this.partition.getRange(options);
+        return this.instance.getRange(options);
     }
 
     /**
@@ -102,7 +102,7 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      * @param options Range options, except for 'start' and 'end' (which are cleared).
      */
     public getAll(options: Omit<RangeOptions, 'start' | 'end'>): RangeIterable<{ key: PK, value: PV }> {
-        return this.partition.getRange({
+        return this.instance.getRange({
             ...options,
             start: undefined,
             end: undefined,
@@ -114,6 +114,6 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      * @returns An object of database stats.
      */
     public getStats(): any {
-        return this.partition.getStats();
+        return this.instance.getStats();
     }
 }
