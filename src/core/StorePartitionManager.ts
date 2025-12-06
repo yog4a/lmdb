@@ -98,6 +98,16 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
     }
 
     /**
+     * Get a value by its key.
+     * @param key Key to fetch.
+     * @param options (Optional) Additional get options (transaction, etc)
+     * @returns Associated value, or undefined if not found.
+     */
+    public getMany(keys: PK[]): Promise<(PV | undefined)[]> {
+        return this.instance.getMany(keys);
+    }
+
+    /**
      * Get an iterable for all key-value pairs in the partition (no start/end filtering).
      * @param options Range options, except for 'start' and 'end' (which are cleared).
      */
