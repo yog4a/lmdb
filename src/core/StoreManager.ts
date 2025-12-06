@@ -41,11 +41,11 @@ export class StoreManager<K extends Key = Key, V = any> {
             initialCheck: true,
         });
 
-        // Open a reserved partition for metadata management; JSON-encoded, no compression
+        // Open a reserved partition for metadata management; msgpack-encoded, no compression
         this.metadata = new StorePartitionManager<string, any>(this.database, {
             name: 'metadata',
             cache: false,                       // No small cache needed for metadata usage
-            encoding: 'json',                   // Always treat metadata as plain JSON
+            encoding: 'msgpack',                // Always treat metadata as msgpack (faster than json)
             keyEncoding: undefined,             // Use string keys (default, undefined)
             compression: false,                 // Disable compression (small amount of data)
             sharedStructuresKey: undefined,
@@ -58,14 +58,14 @@ export class StoreManager<K extends Key = Key, V = any> {
     // ======= Root Database Operations =======
 
     /**
-     * Execute a synchronous write transaction on the root database.
-     * Commits immediately on completion (returns before commit is guaranteed safe).
+     * Execute a asynchronous write transaction on the root database.
+     * Commits on completion (returns before commit is guaranteed safe).
      *
      * @param action - Function to execute within the transaction
-     * @param flags - Optional LMDB TransactionFlags to control semantics
+     * @returns Promise that resolves when the transaction is committed
      */
-    public transaction(action: () => void, flags?: TransactionFlags): void {
-        return this.database.transactionSync(action, flags);
+    public transaction(action: () => void): Promise<void> {
+        return this.database.transaction(action);
     }
 
     /**
@@ -97,9 +97,11 @@ export class StoreManager<K extends Key = Key, V = any> {
         }
         for (const partition of this.partitions.values()) {
             try { 
-                await partition.partition.close(); 
+                await partition.instance.close(); 
             } catch {
                 // Ignore errors when closing partitions
+            } finally {
+                this.partitions.delete(partition.name);
             }
         }
         await this.database.close();
@@ -176,7 +178,7 @@ export class StoreManager<K extends Key = Key, V = any> {
 
         // Attempt to close, report error if fails
         try {
-            await partition.partition.close();
+            await partition.instance.close();
         } catch (err) {
             throw new Error(
                 `Failed to close partition ${partitionName}: ${err instanceof Error ? err.message : String(err)}`
@@ -216,8 +218,8 @@ export class StoreManager<K extends Key = Key, V = any> {
 
         try {
             // Drop and close the partition underlying database
-            await partition.partition.drop();
-            await partition.partition.close();
+            await partition.instance.drop();
+            await partition.instance.close();
         } catch (err) {
             throw new Error(
                 `Failed to drop partition ${partitionName}: ${err instanceof Error ? err.message : String(err)}`
