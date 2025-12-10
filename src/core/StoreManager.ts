@@ -1,4 +1,4 @@
-import type { RootDatabase, Key, TransactionFlags } from 'lmdb';
+import type { RootDatabase, Key } from 'lmdb';
 import type { StoreManagerDatabaseOptions, StoreManagerPartitionOptions } from './types.js';
 import { StorePartitionManager } from './StorePartitionManager.js';
 import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';

@@ -23,6 +23,7 @@
     "manager"
   ],
   "scripts": {
+    "prepare": "tsup",
     "build": "tsup",
     "release": "git push --follow-tags",
     "version:patch": "pnpm version patch",
