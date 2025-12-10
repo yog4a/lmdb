@@ -1,7 +1,7 @@
 {
   "name": "@yog4a/lmdb",
   "description": "Personal encapsulation module for lmdb",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": "Yog4a",
   "repository": {
     "type": "git",
