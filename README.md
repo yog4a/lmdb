@@ -9,6 +9,11 @@ npm install github:yog4a/lmdb
 pnpm add github:yog4a/lmdb
 ```
 
+```bash
+npm install github:yog4a/lmdb#v0.4.0
+pnpm add github:yog4a/lmdb#v0.4.0
+```
+
 ## What this package provides
 
 Three entry points so you can pick the level of abstraction:
