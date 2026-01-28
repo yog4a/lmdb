@@ -273,7 +273,7 @@ var StoreManager = class {
    * @throws If partition with given name already exists
    */
   createPartition(partitionName) {
-    let list = this.listPartitions();
+    const list = this.listPartitions();
     if (list.includes(partitionName) || partitionName === "metadata") {
       throw new Error(`Partition ${partitionName} already exists!`);
     }
@@ -297,7 +297,7 @@ var StoreManager = class {
     if (partitionName === "metadata") {
       throw new Error("Metadata partition is not openable!");
     }
-    let list = this.listPartitions();
+    const list = this.listPartitions();
     if (list.includes(partitionName)) {
       const options = { ...this.partitionOptions, name: partitionName };
       partition = new StorePartitionManager(this.database, options);
@@ -343,7 +343,7 @@ var StoreManager = class {
     if (partitionName === "metadata") {
       throw new Error("Metadata partition cannot be dropped!");
     }
-    var list = this.listPartitions();
+    const list = this.listPartitions();
     if (!list.includes(partitionName)) {
       throw new Error(`Partition ${partitionName} does not exist!`);
     }
