@@ -25,6 +25,7 @@
   "scripts": {
     "prepare": "tsup",
     "build": "tsup",
+    "test": "node --import tsx --test",
     "release": "git push --follow-tags",
     "version:patch": "pnpm version patch",
     "version:minor": "pnpm version minor",
@@ -36,13 +37,13 @@
     "publish:npm": "pnpm publish --registry https://registry.npmjs.org/"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
+    "@types/node": "^25.0.10",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "lmdb": "^3.4.4"
+    "lmdb": "^3.5.1"
   },
   "files": [
     "dist",
