@@ -174,6 +174,8 @@ var ReaderCheckManager = class {
     return this.timer !== null;
   }
 };
+
+// src/core/StoreManager.ts
 var StoreManager = class {
   /**
    * Constructs the StoreManager for a root LMDB environment.
@@ -270,7 +272,7 @@ var StoreManager = class {
    */
   createPartition(partitionName) {
     let list = this.listPartitions();
-    if (list.includes(partitionName)) {
+    if (list.includes(partitionName) || partitionName === "metadata") {
       throw new Error(`Partition ${partitionName} already exists!`);
     }
     const options = { ...this.partitionOptions, name: partitionName };
@@ -289,6 +291,9 @@ var StoreManager = class {
     let partition = this.partitions.get(partitionName);
     if (partition) {
       return partition;
+    }
+    if (partitionName === "metadata") {
+      throw new Error("Metadata partition is not openable!");
     }
     let list = this.listPartitions();
     if (list.includes(partitionName)) {
@@ -333,6 +338,9 @@ var StoreManager = class {
     if (!confirm) {
       throw new Error("Confirmation required to drop partition!");
     }
+    if (partitionName === "metadata") {
+      throw new Error("Metadata partition cannot be dropped!");
+    }
     var list = this.listPartitions();
     if (!list.includes(partitionName)) {
       throw new Error(`Partition ${partitionName} does not exist!`);
@@ -359,8 +367,14 @@ var StoreManager = class {
    * @returns Array of partition names (strings)
    */
   listPartitions() {
-    const keys = this.database.getKeys().asArray;
-    return keys.filter((key) => key !== "metadata");
+    const keys = this.database.getKeys();
+    let list = [];
+    for (const key of keys) {
+      if (key !== "metadata") {
+        list.push(key);
+      }
+    }
+    return list;
   }
 };
 

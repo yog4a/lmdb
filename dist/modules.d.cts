@@ -1,4 +1,4 @@
-import { RootDatabaseOptions, RootDatabase, RangeOptions, RangeIterable } from 'lmdb';
+import { RootDatabase, RootDatabaseOptions, RangeOptions, RangeIterable } from 'lmdb';
 
 /**
  * LMDBMap provides a high-level map-like interface over an LMDB root database.

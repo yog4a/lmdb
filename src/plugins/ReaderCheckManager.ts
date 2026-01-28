@@ -1,4 +1,4 @@
-import type { RootDatabase } from 'lmdb';
+import { type RootDatabase } from 'lmdb';
 
 /**
  * Options for configuring the reader check behavior.

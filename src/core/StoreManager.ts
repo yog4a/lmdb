@@ -1,8 +1,7 @@
-import type { RootDatabase, Key } from 'lmdb';
 import type { StoreManagerDatabaseOptions, StoreManagerPartitionOptions } from './types.js';
+import { open, type RootDatabase, type Key } from 'lmdb';
 import { StorePartitionManager } from './StorePartitionManager.js';
 import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
-import { open } from 'lmdb';
 
 /**
  * StoreManager manages LMDB root database and all logical partitions.
@@ -119,16 +118,17 @@ export class StoreManager<K extends Key = Key, V = any> {
      */
     public createPartition(partitionName: string): StorePartitionManager<K, V> {
         // Gather current partitions
-        let list = this.listPartitions();
+        const list = this.listPartitions();
 
         // Ensure the partition does not already exist
-        if (list.includes(partitionName)) {
+        if (list.includes(partitionName) || partitionName === 'metadata') {
             throw new Error(`Partition ${partitionName} already exists!`);
         }
 
         // Build partition options; open and track new partition
         const options = { ...this.partitionOptions, name: partitionName };
         const partition = new StorePartitionManager<K, V>(this.database, options);
+
         this.partitions.set(partitionName, partition);
 
         return partition;
@@ -148,8 +148,12 @@ export class StoreManager<K extends Key = Key, V = any> {
             return partition;
         }
 
+        if (partitionName === 'metadata') {
+            throw new Error('Metadata partition is not openable!');
+        }
+
         // See if partition is listed in the backing store
-        let list = this.listPartitions();
+        const list = this.listPartitions();
         if (list.includes(partitionName)) {
             // Partition exists but not open; open and track
             const options = { ...this.partitionOptions, name: partitionName };
@@ -202,8 +206,12 @@ export class StoreManager<K extends Key = Key, V = any> {
             throw new Error('Confirmation required to drop partition!');
         }
 
+        if (partitionName === 'metadata') {
+            throw new Error('Metadata partition cannot be dropped!');
+        }
+
         // Validate partition presence in environment
-        var list = this.listPartitions();
+        const list = this.listPartitions();
         if (!list.includes(partitionName)) {
             throw new Error(`Partition ${partitionName} does not exist!`);
         }
@@ -237,7 +245,14 @@ export class StoreManager<K extends Key = Key, V = any> {
      */
     public listPartitions(): string[] {
         // Get all sub-database keys; filter reserved metadata out
-        const keys = this.database.getKeys().asArray;
-        return keys.filter(key => key !== "metadata");
+        const keys = this.database.getKeys();
+        
+        let list: string[] = [];
+        for (const key of keys) {
+            if (key !== 'metadata') {
+                list.push(key);
+            }
+        }
+        return list;
     }
 }
