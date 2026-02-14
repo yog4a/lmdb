@@ -21,4 +21,9 @@ export default defineConfig({
     platform: 'node',             // Node.js target
     shims: false,                 // No need for shims in Node
     skipNodeModulesBundle: true,  // Don't bundle node_modules
+    outExtension({ format }) {
+        return {
+            js: format === 'cjs' ? '.cjs' : '.mjs'
+        }
+    },
 });

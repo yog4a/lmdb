@@ -94,7 +94,7 @@ declare class StoreManager<K extends Key = Key, V = any> {
     private readonly databaseOptions;
     private readonly partitionOptions;
     /** The underlying LMDB root database instance */
-    readonly database: RootDatabase<any, string>;
+    private readonly database;
     /** Partition holding internal metadata (not user data). */
     readonly metadata: StorePartitionManager<string, any>;
     /** In-memory registry of open partitions, by name */

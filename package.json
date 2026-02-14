@@ -3,41 +3,27 @@
   "description": "Personal encapsulation module for lmdb",
   "version": "0.4.0",
   "author": "Yog4a",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yog4a/lmdb.git"
-  },
-  "bugs": {
-    "url": "https://github.com/yog4a/lmdb/issues"
-  },
   "type": "module",
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "keywords": [
-    "lmdb",
-    "database",
-    "store",
-    "manager",
-    "partition",
-    "manager"
-  ],
   "scripts": {
     "prepare": "tsup",
+    "prepack": "tsup",
     "build": "tsup",
     "test": "node --import tsx --test",
-    "release": "git push --follow-tags",
-    "version:patch": "pnpm version patch",
-    "version:minor": "pnpm version minor",
-    "version:major": "pnpm version major",
-    "build:patch": "pnpm version patch && pnpm build",
-    "build:minor": "pnpm version minor && pnpm build",
-    "build:major": "pnpm version major && pnpm build",
-    "update": "pnpm up --latest",
-    "publish:npm": "pnpm publish --registry https://registry.npmjs.org/"
+    "tags": "git push --follow-tags",
+    "build:patch": "npm version patch && npm run build",
+    "build:minor": "npm version minor && npm run build",
+    "build:major": "npm version major && npm run build",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major",
+    "update:check": "npx npm-check-updates -u",
+    "update:install": "npm install"
   },
   "devDependencies": {
-    "@types/node": "^25.0.10",
+    "@types/node": "^25.2.3",
     "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
@@ -53,21 +39,21 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs",
-      "default": "./dist/index.js"
+      "default": "./dist/index.mjs"
     },
     "./core": {
       "types": "./dist/core.d.ts",
-      "import": "./dist/core.js",
+      "import": "./dist/core.mjs",
       "require": "./dist/core.cjs",
-      "default": "./dist/core.js"
+      "default": "./dist/core.mjs"
     },
     "./modules": {
       "types": "./dist/modules.d.ts",
-      "import": "./dist/modules.js",
+      "import": "./dist/modules.mjs",
       "require": "./dist/modules.cjs",
-      "default": "./dist/modules.js"
+      "default": "./dist/modules.mjs"
     }
   }
 }

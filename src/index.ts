@@ -1,7 +1,7 @@
 export {
-    Database,
-    RootDatabase,
-    DatabaseClass,
+    type Database,
+    type RootDatabase,
+    type DatabaseClass,
     type Transaction,
     type RangeIterable,
     type Key,
@@ -13,3 +13,7 @@ export {
     type RangeOptions,
     type PutOptions,
 } from "lmdb";
+
+export * from "./core/StoreManager.js";
+export * from "./core/StorePartitionManager.js";
+export * from "./core/types.js";

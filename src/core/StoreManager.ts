@@ -9,7 +9,7 @@ import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
  */
 export class StoreManager<K extends Key = Key, V = any> {
     /** The underlying LMDB root database instance */
-    public readonly database: RootDatabase<any, string>;
+    private readonly database: RootDatabase<any, string>;
 
     /** Partition holding internal metadata (not user data). */
     public readonly metadata: StorePartitionManager<string, any>;

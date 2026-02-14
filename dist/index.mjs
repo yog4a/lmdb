@@ -1,6 +1,5 @@
-'use strict';
-
-var lmdb = require('lmdb');
+import { open } from 'lmdb';
+export { Database, DatabaseClass, RootDatabase } from 'lmdb';
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -189,7 +188,7 @@ var StoreManager = class {
   constructor(databaseOptions, partitionOptions) {
     this.databaseOptions = databaseOptions;
     this.partitionOptions = partitionOptions;
-    this.database = lmdb.open(this.databaseOptions);
+    this.database = open(this.databaseOptions);
     this.readerCheckManager = new ReaderCheckManager(this.database, {
       periodicMs: 15 * 6e4,
       // 15 minutes
@@ -380,5 +379,4 @@ var StoreManager = class {
   }
 };
 
-exports.StoreManager = StoreManager;
-exports.StorePartitionManager = StorePartitionManager;
+export { StoreManager, StorePartitionManager };

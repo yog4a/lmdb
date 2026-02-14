@@ -65,7 +65,7 @@ var StorePartitionManager = class {
    * @returns true if a value was deleted, false otherwise.
    */
   del(key, valueToRemove) {
-    if (valueToRemove) {
+    if (arguments.length > 1) {
       return this.instance.removeSync(key, valueToRemove);
     } else {
       return this.instance.removeSync(key);

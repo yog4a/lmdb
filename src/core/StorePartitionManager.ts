@@ -74,8 +74,8 @@ export class StorePartitionManager<PK extends Key = Key, PV = any> {
      * @returns true if a value was deleted, false otherwise.
      */
     public del(key: PK, valueToRemove?: PV): boolean {
-        if (valueToRemove) {
-            return this.instance.removeSync(key, valueToRemove);
+        if (arguments.length > 1) {
+            return this.instance.removeSync(key, valueToRemove!);
         } else {
             return this.instance.removeSync(key);
         }
