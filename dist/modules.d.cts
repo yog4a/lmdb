@@ -167,7 +167,7 @@ declare class StoreMap<K extends StoreMapKey = StoreMapKey, V = any> {
      * @param options - (Optional) Override default options for the LMDB root environment.
      * @param readOnly - Whether the database should be opened in read-only mode (default: true).
      */
-    constructor(path: string, options: StoreMapOptions | undefined, readOnly: boolean);
+    constructor(path: string, options?: StoreMapOptions, readOnly?: boolean);
     /**
      * Determine whether a key exists in the map.
      * @param key - The key to check for existence.

@@ -271,7 +271,7 @@ var StoreMap = class {
    * @param options - (Optional) Override default options for the LMDB root environment.
    * @param readOnly - Whether the database should be opened in read-only mode (default: true).
    */
-  constructor(path, options = {}, readOnly) {
+  constructor(path, options = {}, readOnly = true) {
     this.database = lmdb.open({
       path,
       // Filesystem path for LMDB environment storage
@@ -297,10 +297,10 @@ var StoreMap = class {
       // No batch commit operations to increase throughput under load
       eventTurnBatching: true,
       // Group multiple async writes in an event loop tick for optimal efficiency
-      noSync: true,
-      // Disable fsync calls for much faster writes (at the cost of durability on crash)
-      noMetaSync: true,
-      // Skip syncing metadata to further boost write speed (lowers durability)
+      noSync: false,
+      // Enable fsync calls for durability on crash
+      noMetaSync: false,
+      // Enable syncing metadata to further boost write speed (lowers durability)
       cache: true,
       // Enable small built-in key/value cache to speed up hot key access
       overlappingSync: false,

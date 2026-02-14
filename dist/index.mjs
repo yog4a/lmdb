@@ -1,5 +1,4 @@
 import { open } from 'lmdb';
-export { Database, DatabaseClass, RootDatabase } from 'lmdb';
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
