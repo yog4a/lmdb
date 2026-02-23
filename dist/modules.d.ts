@@ -127,6 +127,7 @@ interface ReaderCheckOptions {
 declare class ReaderCheckManager {
     private readonly database;
     private readonly options;
+    /** Timer for periodic reader checks */
     private timer;
     /**
      * Creates a new ReaderCheckManager instance.

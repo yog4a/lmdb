@@ -3,114 +3,110 @@ import { open } from 'lmdb';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// src/core/StorePartitionManager.ts
-var StorePartitionManager = class {
-  /**
-   * Constructs a new StorePartitionManager for a given partition.
-   * @param database RootDatabase instance to open the partition from.
-   * @param options Database options. Must include `name` for the partition.
-   */
-  constructor(database, options) {
-    this.database = database;
-    this.options = options;
-    this.name = this.options.name;
-    this.instance = this.database.openDB(this.options);
-  }
+// src/core/PartitionManager.ts
+var PartitionManager = class {
   static {
-    __name(this, "StorePartitionManager");
+    __name(this, "PartitionManager");
   }
-  /** The partition's unique name (used as the sub-database name in LMDB) */
+  /** Partition name (sub-database name) */
   name;
-  /** The underlying LMDB Database instance for this partition */
-  instance;
-  // ======== Partition CRUD & Access Methods ========
+  /** Partition instance (sub-database instance) */
+  database;
   /**
-   * Check for existence of a key in the partition.
-   * @param key Key to check for.
-   * @returns true if the key exists, false otherwise.
+   * Create a manager for a specific LMDB partition.
    */
+  constructor(rootDatabase, partitionOptions) {
+    this.name = partitionOptions.name;
+    this.database = rootDatabase.openDB(partitionOptions);
+  }
+  // ================================================================================
+  // Read operations
+  // ================================================================================
+  /** Returns true if the key exists. */
   has(key) {
-    return this.instance.doesExist(key);
+    return this.database.doesExist(key);
   }
-  /**
-   * Retrieve a value by its key.
-   * @param key Key to fetch.
-   * @param options (Optional) Additional get options (transaction, etc)
-   * @returns Associated value, or undefined if not found.
-   */
-  get(key, options) {
-    if (options) {
-      return this.instance.get(key, options);
-    } else {
-      return this.instance.get(key);
-    }
+  /** Get value for a key. */
+  get(key) {
+    return this.database.get(key);
   }
-  /**
-   * Insert or update a value by key.
-   * @param key Key to insert or update.
-   * @param value Value to associate.
-   * @param options (Optional) Additional options (like version, append, etc)
-   */
-  put(key, value, options) {
-    if (options) {
-      this.instance.putSync(key, value, options);
-    } else {
-      this.instance.putSync(key, value);
-    }
+  /** Prefetch values for keys (async). */
+  prefetch(keys) {
+    return this.database.prefetch(keys);
   }
-  /**
-   * Remove a value (or specific value for dupsort) by key.
-   * @param key Key to delete.
-   * @param valueToRemove (Optional) The specific value to remove (dupsort).
-   * @returns true if a value was deleted, false otherwise.
-   */
-  del(key, valueToRemove) {
-    if (arguments.length > 1) {
-      return this.instance.removeSync(key, valueToRemove);
-    } else {
-      return this.instance.removeSync(key);
-    }
+  /** Get count of entries (optionally in range). */
+  getCount(options) {
+    return this.database.getCount(options);
   }
-  /**
-   * Get an iterable of all keys in the partition, optionally filtered by range options.
-   * @param options (Optional) Range options (start, end, reverse, etc)
-   */
+  /** Get iterable of keys (range optional). */
   getKeys(options) {
-    return this.instance.getKeys(options);
+    return this.database.getKeys(options);
   }
-  /**
-   * Get an iterable of { key, value } objects for entries in the partition.
-   * @param options Range options to select or order entries.
-   */
+  /** Get iterable of key-value pairs (range optional). */
   getRange(options) {
-    return this.instance.getRange(options);
+    return this.database.getRange(options);
   }
-  /**
-   * Get a value by its key.
-   * @param key Key to fetch.
-   * @param options (Optional) Additional get options (transaction, etc)
-   * @returns Associated value, or undefined if not found.
-   */
+  /** Get values for multiple keys (async, ordered). */
   getMany(keys) {
-    return this.instance.getMany(keys);
+    return this.database.getMany(keys);
   }
-  /**
-   * Get an iterable for all key-value pairs in the partition (no start/end filtering).
-   * @param options Range options, except for 'start' and 'end' (which are cleared).
-   */
-  getAll(options) {
-    return this.instance.getRange({
-      ...options,
-      start: void 0,
-      end: void 0
-    });
-  }
-  /**
-   * Get statistics for the partition database (entry count, etc).
-   * @returns An object of database stats.
-   */
+  /** Get partition database stats. */
   getStats() {
-    return this.instance.getStats();
+    return this.database.getStats();
+  }
+  // ================================================================================
+  // Write operations
+  // ================================================================================
+  /** Insert or update a value by key (async, supports versioning). */
+  putAsync(key, value, version, ifVersion) {
+    if (version !== void 0) {
+      return this.database.put(key, value, version, ifVersion);
+    }
+    return this.database.put(key, value);
+  }
+  /** Sync put, must be called inside transactionSync. */
+  putSync(key, value, options) {
+    if (options !== void 0) {
+      return this.database.putSync(key, value, options);
+    }
+    return this.database.putSync(key, value);
+  }
+  /** Remove a key/value (async, supports dupsort). */
+  removeAsync(key, valueToRemove) {
+    if (valueToRemove !== void 0) {
+      return this.database.remove(key, valueToRemove);
+    }
+    return this.database.remove(key);
+  }
+  /** Remove a key synchronously (transactionSync required). */
+  removeSync(key, valueToRemove) {
+    if (valueToRemove !== void 0) {
+      return this.database.removeSync(key, valueToRemove);
+    }
+    return this.database.removeSync(key);
+  }
+  /** Batch multiple write operations into one transaction (async). */
+  batchAsync(action) {
+    return this.database.batch(action);
+  }
+  /** Run an async transaction, auto commit after action. */
+  transactionAsync(action) {
+    return this.database.transaction(action);
+  }
+  /** Run a synchronous transaction, blocks until committed. */
+  transactionSync(action, flags) {
+    return this.database.transactionSync(action, flags);
+  }
+  // ================================================================================
+  // Lifecycle
+  // ================================================================================
+  /** Resolves when previous writes are committed. */
+  get committed() {
+    return this.database.committed;
+  }
+  /** Resolves when previous writes are flushed to disk. */
+  get flushed() {
+    return this.database.flushed;
   }
 };
 
@@ -134,6 +130,7 @@ var ReaderCheckManager = class {
   static {
     __name(this, "ReaderCheckManager");
   }
+  /** Timer for periodic reader checks */
   timer = null;
   /**
    * Manually trigger a reader check to clean up stale locks.
@@ -177,38 +174,6 @@ var ReaderCheckManager = class {
 
 // src/core/StoreManager.ts
 var StoreManager = class {
-  /**
-   * Constructs the StoreManager for a root LMDB environment.
-   * Opens the root database and prepares the metadata partition.
-   *
-   * @param databaseOptions - LMDB root-level options (must include path)
-   * @param partitionOptions - Default options for new sub-database partitions
-   */
-  constructor(databaseOptions, partitionOptions) {
-    this.databaseOptions = databaseOptions;
-    this.partitionOptions = partitionOptions;
-    this.database = open(this.databaseOptions);
-    this.readerCheckManager = new ReaderCheckManager(this.database, {
-      periodicMs: 15 * 6e4,
-      // 15 minutes
-      initialCheck: true
-    });
-    this.metadata = new StorePartitionManager(this.database, {
-      name: "metadata",
-      cache: false,
-      // No small cache needed for metadata usage
-      encoding: "msgpack",
-      // Always treat metadata as msgpack (faster than json)
-      keyEncoding: void 0,
-      // Use string keys (default, undefined)
-      compression: false,
-      // Disable compression (small amount of data)
-      sharedStructuresKey: void 0,
-      useVersions: false,
-      dupSort: false,
-      strictAsyncOrder: false
-    });
-  }
   static {
     __name(this, "StoreManager");
   }
@@ -220,7 +185,41 @@ var StoreManager = class {
   partitions = /* @__PURE__ */ new Map();
   /** Reader check manager */
   readerCheckManager;
-  // ======= Root Database Operations =======
+  /**
+   * Constructs the StoreManager for a root LMDB environment.
+   * @param databaseOptions - LMDB root-level options (must include path)
+   */
+  constructor(databaseOptions) {
+    this.database = open(databaseOptions);
+    this.readerCheckManager = new ReaderCheckManager(this.database, {
+      periodicMs: 15 * 6e4,
+      // 15 minutes
+      initialCheck: true
+    });
+    this.metadata = new PartitionManager(this.database, {
+      name: "_metadata",
+      // Reserved partition name for metadata
+      encoding: "msgpack",
+      // Always treat metadata as msgpack (faster than json)
+      keyEncoding: void 0,
+      // Use string keys (default, undefined)
+      cache: false,
+      // No small cache needed for metadata usage  
+      compression: false,
+      // Disable compression (small amount of data)
+      sharedStructuresKey: void 0,
+      // No shared structures key
+      useVersions: false,
+      // No versions
+      dupSort: false,
+      // No duplicate sorting
+      strictAsyncOrder: false
+      // No strict async order
+    });
+  }
+  // ================================================================================
+  // Root Database Operations
+  // ================================================================================
   /**
    * Execute a asynchronous write transaction on the root database.
    * Commits on completion (returns before commit is guaranteed safe).
@@ -228,8 +227,11 @@ var StoreManager = class {
    * @param action - Function to execute within the transaction
    * @returns Promise that resolves when the transaction is committed
    */
-  transaction(action) {
+  transactionAsync(action) {
     return this.database.transaction(action);
+  }
+  transactionSync(action) {
+    return this.database.transactionSync(action);
   }
   /**
    * Return database environment statistics (page counts, sizing, etc)
@@ -247,36 +249,40 @@ var StoreManager = class {
    * Gracefully close all partitions and the root database itself.
    * Ensures all open sub-databases are closed before closing the root database.
    */
-  async closeAll() {
+  async shutdown(onCloseError) {
     if (this.readerCheckManager.isRunning()) {
       this.readerCheckManager.stop();
     }
     for (const partition of this.partitions.values()) {
       try {
-        await partition.instance.close();
-      } catch {
+        await partition.database.close();
+      } catch (error) {
+        onCloseError?.(error);
       } finally {
         this.partitions.delete(partition.name);
       }
     }
     await this.database.close();
   }
-  // ======= Partition Management =======
+  // ================================================================================
+  // Partition Management
+  // ================================================================================
   /**
    * Create and open a new named partition (fails if already exists).
    * Partition is tracked in the manager's open registry.
    *
    * @param partitionName - Unique partition name to create
+   * @param partitionOptions - Options for the new partition
    * @returns StorePartitionManager for the new partition
    * @throws If partition with given name already exists
    */
-  createPartition(partitionName) {
-    const list = this.listPartitions();
-    if (list.includes(partitionName) || partitionName === "metadata") {
+  createPartition(partitionName, partitionOptions) {
+    const partitionExists = this.database.doesExist(partitionName);
+    if (partitionExists || partitionName === "_metadata") {
       throw new Error(`Partition ${partitionName} already exists!`);
     }
-    const options = { ...this.partitionOptions, name: partitionName };
-    const partition = new StorePartitionManager(this.database, options);
+    const options = { ...partitionOptions, name: partitionName };
+    const partition = new PartitionManager(this.database, options);
     this.partitions.set(partitionName, partition);
     return partition;
   }
@@ -285,24 +291,25 @@ var StoreManager = class {
    * If already open, returns the cached instance; otherwise returns undefined if non-existent.
    *
    * @param partitionName - Name of the partition to open
+   * @param partitionOptions - Options for the partition
    * @returns Partition manager instance, or undefined if not found
    */
-  openPartition(partitionName) {
+  openPartition(partitionName, partitionOptions) {
+    if (partitionName === "_metadata") {
+      throw new Error("Metadata partition is not openable!");
+    }
     let partition = this.partitions.get(partitionName);
     if (partition) {
       return partition;
     }
-    if (partitionName === "metadata") {
-      throw new Error("Metadata partition is not openable!");
+    const partitionExists = this.database.get(partitionName) !== void 0;
+    if (!partitionExists) {
+      throw new Error(`Partition ${partitionName} does not exist!`);
     }
-    const list = this.listPartitions();
-    if (list.includes(partitionName)) {
-      const options = { ...this.partitionOptions, name: partitionName };
-      partition = new StorePartitionManager(this.database, options);
-      this.partitions.set(partitionName, partition);
-      return partition;
-    }
-    return void 0;
+    const options = { ...partitionOptions, name: partitionName };
+    partition = new PartitionManager(this.database, options);
+    this.partitions.set(partitionName, partition);
+    return partition;
   }
   /**
    * Gracefully close an open partition, and remove from manager registry.
@@ -314,10 +321,10 @@ var StoreManager = class {
   async closePartition(partitionName) {
     const partition = this.partitions.get(partitionName);
     if (!partition) {
-      throw new Error(`Partition ${partitionName} does not exist!`);
+      throw new Error(`Partition ${partitionName} does not exist or is not open!`);
     }
     try {
-      await partition.instance.close();
+      await partition.database.close();
     } catch (err) {
       throw new Error(
         `Failed to close partition ${partitionName}: ${err instanceof Error ? err.message : String(err)}`
@@ -331,28 +338,15 @@ var StoreManager = class {
    * and closes it if currently open. Confirmation required!
    *
    * @param partitionName - Name of the partition to drop
-   * @param confirm - Must be true to prevent accidental deletion
    * @throws If not confirmed, or the partition does not exist, or drop fails
    */
-  async dropPartition(partitionName, confirm = false) {
-    if (!confirm) {
-      throw new Error("Confirmation required to drop partition!");
-    }
-    if (partitionName === "metadata") {
-      throw new Error("Metadata partition cannot be dropped!");
-    }
-    const list = this.listPartitions();
-    if (!list.includes(partitionName)) {
-      throw new Error(`Partition ${partitionName} does not exist!`);
-    }
-    var partition = this.partitions.get(partitionName);
-    if (partition === void 0) {
-      const options = { ...this.partitionOptions, name: partitionName };
-      partition = new StorePartitionManager(this.database, options);
+  async dropPartition(partitionName) {
+    const partition = this.partitions.get(partitionName);
+    if (!partition) {
+      throw new Error(`Partition ${partitionName} does not exist or is not open!`);
     }
     try {
-      await partition.instance.drop();
-      await partition.instance.close();
+      await partition.database.drop();
     } catch (err) {
       throw new Error(
         `Failed to drop partition ${partitionName}: ${err instanceof Error ? err.message : String(err)}`
@@ -362,20 +356,14 @@ var StoreManager = class {
     }
   }
   /**
-   * List all top-level partitions/user-databases except the reserved metadata partition.
-   *
+   * List all top-level databases (partitions) except the reserved "metadata" database.
    * @returns Array of partition names (strings)
    */
   listPartitions() {
-    const keys = this.database.getKeys();
-    let list = [];
-    for (const key of keys) {
-      if (key !== "metadata") {
-        list.push(key);
-      }
-    }
-    return list;
+    const range = this.database.getKeys();
+    const keys = Array.from(range);
+    return keys.filter((key) => key !== "_metadata");
   }
 };
 
-export { StoreManager, StorePartitionManager };
+export { PartitionManager, StoreManager };

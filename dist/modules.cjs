@@ -25,6 +25,7 @@ var ReaderCheckManager = class {
   static {
     __name(this, "ReaderCheckManager");
   }
+  /** Timer for periodic reader checks */
   timer = null;
   /**
    * Manually trigger a reader check to clean up stale locks.
