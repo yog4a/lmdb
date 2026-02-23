@@ -19,7 +19,7 @@ pnpm add github:yog4a/lmdb#v0.4.0
 Three entry points so you can pick the level of abstraction:
 
 - `@yog4a/lmdb/modules` -> `LMDBMap` (Map-like single database)
-- `@yog4a/lmdb/core` -> `StoreManager` and `StorePartitionManager` (multi-partition)
+- `@yog4a/lmdb/core` -> `StoreManager` and `PartitionManager` (multi-partition)
 - `@yog4a/lmdb` -> Re-exported lmdb-js
 
 ## Quick start
@@ -49,39 +49,47 @@ await db.close();
 ```typescript
 import { StoreManager } from '@yog4a/lmdb/core';
 
-const manager = new StoreManager(
-  { path: './data/multidb' },
-  { encoding: 'json', compression: false }
-);
+const manager = new StoreManager({ path: './data/multidb' });
 
-const users = manager.createPartition('users');
-users.put('user:1', { name: 'Ada' });
+const users = manager.createPartition('users', {
+  name: 'users',
+  encoding: 'json',
+  compression: false,
+});
+users.putSync('user:1', { name: 'Ada' });
+
+const reopened = manager.openPartition('users', {
+  name: 'users',
+  encoding: 'json',
+  compression: false,
+});
+console.log(reopened?.get('user:1'));
 
 const partitions = manager.listPartitions();
 console.log(partitions);
 
-await manager.closeAll();
+await manager.shutdown();
 ```
 
-### StorePartitionManager (single partition)
+### PartitionManager (single partition)
 
 ```typescript
-import { StorePartitionManager } from '@yog4a/lmdb/core';
+import { PartitionManager } from '@yog4a/lmdb/core';
 import { open } from 'lmdb';
 
 const root = open({ path: './data/root' });
-const partition = new StorePartitionManager(root, { name: 'events', encoding: 'json' });
+const partition = new PartitionManager(root, { name: 'events', encoding: 'json' });
 
-partition.put('e1', { ok: true });
+partition.putSync('e1', { ok: true });
 console.log(partition.get('e1'));
 ```
 
 ## Important behavior
 
 - `LMDBMap` is read-only by default. Set `readOnly: false` to write.
-- `StoreManager` reserves a partition named `metadata`. Do not create it yourself.
+- `StoreManager` reserves a partition named `_metadata`. Do not create it yourself.
 - `listPartitions()` enumerates partition names from LMDB. Ordering is not guaranteed.
-- Always call `close()` or `closeAll()` to stop timers and release resources.
+- Always call `close()` or `shutdown()` to stop timers and release resources.
 
 ## Default LMDBMap options
 

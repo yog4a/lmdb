@@ -15,6 +15,7 @@ export interface ReaderCheckOptions {
  * Handles both initial cleanup and periodic maintenance of stale reader locks.
  *  */
 export class ReaderCheckManager {
+    /** Timer for periodic reader checks */
     private timer: NodeJS.Timeout | null = null;
 
     /**
@@ -26,13 +27,12 @@ export class ReaderCheckManager {
         private readonly database: RootDatabase<any, any>,
         private readonly options: ReaderCheckOptions,
     ) {
-        // Perform initial cleanup of stale reader locks
         if (options.initialCheck) {
+            // Perform initial cleanup of stale reader locks
             this.check();
         }
-
-        // Start periodic reader checks
         if (options.periodicMs > 0) {
+            // Start periodic reader checks
             this.start();
         }
     }
