@@ -6,4 +6,4 @@ import type { RootDatabaseOptions, DatabaseOptions } from 'lmdb';
 
 export type StoreOptions = RootDatabaseOptions & { path: string; };
 
-export type PartitionOptions = DatabaseOptions & { name: string };
+export type PartitionOptions = Omit<DatabaseOptions, 'name'>;

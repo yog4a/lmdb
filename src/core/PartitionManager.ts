@@ -17,7 +17,7 @@ export class PartitionManager<PK extends Key = Key, PV = any> {
      */
     constructor(
         rootDatabase: RootDatabase,
-        partitionOptions: PartitionOptions,
+        partitionOptions: PartitionOptions & { name: string },
     ) {
         this.name = partitionOptions.name;
         this.database = rootDatabase.openDB<PV, PK>(partitionOptions);
