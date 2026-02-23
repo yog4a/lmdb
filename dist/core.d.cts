@@ -3,9 +3,7 @@ import { DatabaseOptions, RootDatabaseOptions, Key, Database, RootDatabase, Rang
 type StoreOptions = RootDatabaseOptions & {
     path: string;
 };
-type PartitionOptions = DatabaseOptions & {
-    name: string;
-};
+type PartitionOptions = Omit<DatabaseOptions, 'name'>;
 
 /**
  * Manages a named partition (sub-database) in an LMDB RootDatabase.
@@ -19,7 +17,9 @@ declare class PartitionManager<PK extends Key = Key, PV = any> {
     /**
      * Create a manager for a specific LMDB partition.
      */
-    constructor(rootDatabase: RootDatabase, partitionOptions: PartitionOptions);
+    constructor(rootDatabase: RootDatabase, partitionOptions: PartitionOptions & {
+        name: string;
+    });
     /** Returns true if the key exists. */
     has(key: PK): boolean;
     /** Get value for a key. */
