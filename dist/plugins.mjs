@@ -15,10 +15,12 @@ var DayPartitionManager = class _DayPartitionManager {
   constructor(store, options) {
     this.store = store;
     this.options = options;
-    if (!Number.isInteger(options.maxDaysRetention) || options.maxDaysRetention <= 0) {
-      throw new Error(`maxDaysRetention must be a positive integer, got: ${options.maxDaysRetention}`);
+    if (options.maxDaysRetention !== -1) {
+      if (!Number.isInteger(options.maxDaysRetention) || options.maxDaysRetention <= 0) {
+        throw new Error(`maxDaysRetention must be a positive integer, got: ${options.maxDaysRetention}`);
+      }
+      void this.pruneOldPartitions();
     }
-    void this.pruneOldPartitions();
   }
   static {
     __name(this, "DayPartitionManager");
@@ -78,7 +80,7 @@ var DayPartitionManager = class _DayPartitionManager {
    * Prune old partitions if the number of partitions exceeds the maximum retention.
    */
   async pruneOldPartitions() {
-    if (this.isPruning) {
+    if (this.isPruning || this.options.maxDaysRetention <= 0) {
       return;
     }
     this.isPruning = true;
@@ -131,6 +133,9 @@ var DayPartitionManager = class _DayPartitionManager {
    * @throws Error if the timestamp is older than the retention period
    */
   assertInRetention(tsSec) {
+    if (this.options.maxDaysRetention === -1) {
+      return;
+    }
     const nowSec = Math.floor(Date.now() / 1e3);
     const secondsInDay = _DayPartitionManager.SECONDS_IN_DAY;
     const nowDay = Math.floor(nowSec / secondsInDay);

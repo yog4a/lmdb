@@ -11,7 +11,7 @@ interface DayPartitionManagerOptions {
     partitionPrefix: string;
     /** Partition options */
     partitionOptions: PartitionOptions;
-    /** Maximum days retention */
+    /** Maximum days retention (-1 to disable pruning) */
     maxDaysRetention: number;
 }
 /**
