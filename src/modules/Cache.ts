@@ -1,80 +1,68 @@
-/**
- * LMDBMap provides a high-level map-like interface over an LMDB root database.
- * All entries are stored in the root database (not using sub-databases).
- */
 import type { RootDatabase, RangeOptions, RangeIterable, RootDatabaseOptions } from 'lmdb';
 import { open } from 'lmdb';
 import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 
+// ===========================================================
 // Types
 // ===========================================================
 
-/** LMDB Key type */
-export type LMDBMapKey = string | number | (string | number)[];
+export type LmdbCacheKey = string | number | (string | number)[];
 
-/** LMDB map options type */
-export type LMDBMapOptions = Omit<RootDatabaseOptions, "path">;
+export type LmdbCacheOptions = Omit<RootDatabaseOptions, "path" | "readOnly">;
 
-/** LMDB map class types */
-export type LMDBMapReadable<K extends LMDBMapKey = LMDBMapKey, V = any> = Omit<LMDBMap<K, V>, "set" | "del" | "clear" | "transaction">;
-export type LMDBMapWritable<K extends LMDBMapKey = LMDBMapKey, V = any> = LMDBMap<K, V>;
-
-// Class
+// ===========================================================
+// Base Class (Read-only)
 // ===========================================================
 
-export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
+export class LmdbCache<K extends LmdbCacheKey = LmdbCacheKey, V = any> {
     /** The underlying LMDB root database instance */
-    public readonly database: RootDatabase<V, K>;
-    /** LMDB map options */
-    public readonly options: RootDatabaseOptions;
+    protected readonly database: RootDatabase<V, K>;
     /** Reader check manager */
-    private readonly readerCheckManager: ReaderCheckManager;
+    protected readonly readerCheckManager: ReaderCheckManager;
 
     /**
-     * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
+     * Constructs a StoreMap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
      * @param options - (Optional) Override default options for the LMDB root environment.
      * @param readOnly - Whether the database should be opened in read-only mode (default: true).
      */
     constructor(
-        private readonly path: string,
-        options: LMDBMapOptions = {},
+        path: string,
+        options: LmdbCacheOptions = {},
+        readOnly: boolean = true,
     ) {
-        // Default options
-        this.options = {
+        // Open the LMDB root environment (creating it if it doesn't exist)
+        this.database = open({
+            path: path,                     // Filesystem path for LMDB environment storage
             maxDbs: 1,                      // Only use the root database; no additional sub-databases needed
-            maxReaders: 256,                // Supports up to 256 simultaneous read transactions
+            maxReaders: 64,                 // Supports up to 64 simultaneous read transactions
             keyEncoding: "ordered-binary",  // Ensures keys are ordered binary for efficient range scans and correct key ordering
             encoding: "msgpack",            // Store and retrieve values as JSON (automatic serialization/deserialization)
             compression: false,             // Compression disabled for best write and read performance
-            mapSize: 512 * 1024 ** 2,       // Preallocate 512 MiB virtual address space for fast and scalable growth
+            mapSize: 64 * 1024 ** 2,        // Preallocate 64MB: 10K items ~ 1-10MB max
             remapChunks: true,              // Let LMDB automatically expand the map size if needed
             pageSize: 4096,                 // Use standard 4 KB OS page size for optimal compatibility and IO
             noMemInit: true,                // Skip memory zeroing for new pages to accelerate allocation (safe in LMDB)
-            commitDelay: 50,                // Batch commit operations up to 50 ms to increase throughput under load
+            commitDelay: 0,                 // No batch commit operations to increase throughput under load
             eventTurnBatching: true,        // Group multiple async writes in an event loop tick for optimal efficiency
-            noSync: true,                   // Disable fsync calls for much faster writes (at the cost of durability on crash)
-            noMetaSync: true,               // Skip syncing metadata to further boost write speed (lowers durability)
+            noSync: false,                  // Enable fsync calls for durability on crash
+            noMetaSync: false,              // Enable syncing metadata to further boost write speed (lowers durability)
             cache: true,                    // Enable small built-in key/value cache to speed up hot key access
             overlappingSync: false,         // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
-            readOnly: true,                 // Set read-only mode by default
             ...options,
-        };
-
-        // Open the LMDB root environment (creating it if it doesn't exist)
-        this.database = open({
-            path: this.path,                // Filesystem path for LMDB environment storage
-            ...this.options,
+            readOnly: readOnly,
         });
 
-        // Scan for and remove leftover reader locks (recommended on startup)
+        // Remove any stale reader locks to avoid locking issues
         this.readerCheckManager = new ReaderCheckManager(this.database, {
-            periodicMs: 15 * 60_000, // 15 minutes
+            periodicMs: 15 * 60_000,        // 15 minutes
             initialCheck: true,
         });
     }
 
-    // ======== Map-like API Methods ========
+    // ===========================================================
+    // Read-only methods
+    // ===========================================================
 
     /**
      * Determine whether a key exists in the map.
@@ -159,8 +147,46 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
         }
         return this.database.close();
     }
+}
 
-    // ======== Write API (only reachable via WritableLMDBmap) ========
+// ===========================================================
+// Base Class (Read-only)
+// ===========================================================
+
+export class LmdbCacheReader<K extends LmdbCacheKey = LmdbCacheKey, V = any> extends LmdbCache<K, V> {
+    /**
+     * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
+     * @param path - Filesystem directory for the LMDB environment.
+     * @param options - (Optional) Override default options for the LMDB root environment.
+     */
+    constructor(
+        path: string,
+        options: LmdbCacheOptions = {},
+    ) {
+        super(path, options, true);
+    }
+}
+
+// ===========================================================
+// Writer Class (extends Reader)
+// ===========================================================
+
+export class LmdbCacheWriter<K extends LmdbCacheKey = LmdbCacheKey, V = any> extends LmdbCache<K, V> {
+    /**
+     * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
+     * @param path - Filesystem directory for the LMDB environment.
+     * @param options - (Optional) Override default options for the LMDB root environment.
+     */
+    constructor(
+        path: string,
+        options: LmdbCacheOptions = {},
+    ) {
+        super(path, options, false);
+    }
+
+    // ===========================================================
+    // Write methods
+    // ===========================================================
 
     /**
      * Insert a new value or update the value for the given key.
@@ -169,9 +195,6 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @param options - (Optional) Additional put options.
      */
     public set(key: K, value: V): void {
-        if (this.options.readOnly) {
-            throw new Error('Cannot perform set on a read-only database.');
-        }
         return this.database.putSync(key, value);
     }
 
@@ -182,9 +205,6 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @returns true if an entry was deleted, false if not found.
      */
     public del(key: K): boolean {
-        if (this.options.readOnly) {
-            throw new Error('Cannot perform delete on a read-only database.');
-        }
         return this.database.removeSync(key);
     }
 
@@ -193,9 +213,6 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @param confirm - Whether to confirm the action.
      */
     public clear(confirm: boolean = false): void {
-        if (this.options.readOnly) {
-            throw new Error('Cannot perform clear on a read-only database.');
-        }
         if (confirm !== true) {
             throw new Error('Set confirm to true to clear the database! This action is irreversible.');
         }
@@ -208,9 +225,6 @@ export class LMDBMap<K extends LMDBMapKey = LMDBMapKey, V = any> {
      * @returns The result of the provided function.
      */
     public transaction<T>(fn: () => T): Promise<T> {
-        if (this.options.readOnly) {
-            throw new Error('Cannot perform transactions on a read-only database.');
-        }
         return this.database.transaction(fn);
     }
 }

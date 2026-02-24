@@ -11,9 +11,9 @@ export interface ReaderCheckOptions {
 }
 
 /**
- * Manages LMDB reader lock checks for a database instance.
+ * Manages LMDB reader lock checks for a root database instance.
  * Handles both initial cleanup and periodic maintenance of stale reader locks.
- *  */
+ */
 export class ReaderCheckManager {
     /** Timer for periodic reader checks */
     private timer: NodeJS.Timeout | null = null;
@@ -70,6 +70,7 @@ export class ReaderCheckManager {
      * Should be called before closing the database.
      */
     public stop(): void {
+        this.check();
         if (this.timer) {
             clearInterval(this.timer);
             this.timer = null;
