@@ -6,7 +6,7 @@ import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 /**
  * StoreOptions are the options for the root LMDB environment.
  */
-export type StoreOptions = RootDatabaseOptions;
+export type StoreOptions = RootDatabaseOptions & { path: string };
 
 /**
  * StoreManager provides operations for a root LMDB environment and its partitions.
@@ -26,7 +26,7 @@ export class StoreManager {
      * @param storeOptions - LMDB root-level options (must include path)
      */
     constructor(
-        storeOptions: StoreOptions & { path: string },
+        storeOptions: StoreOptions,
     ) {
         // Open (or create) the root database environment
         this.store = open(storeOptions);
