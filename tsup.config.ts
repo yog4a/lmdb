@@ -3,8 +3,8 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
     entry: [
         'src/index.ts',
-        'src/core.ts',
         'src/modules.ts',
+        'src/plugins.ts',
     ],
     format: ['cjs', 'esm'],        // both CommonJS and ES modules
     target: 'es2022',              // better for Node 18+ than ESNext
