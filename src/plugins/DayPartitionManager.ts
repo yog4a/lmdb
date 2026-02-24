@@ -9,7 +9,7 @@ export interface DayPartitionManagerOptions {
     partitionPrefix: string;
     /** Partition options */
     partitionOptions: PartitionOptions;
-    /** Maximum days retention */
+    /** Maximum days retention (-1 to disable pruning) */
     maxDaysRetention: number;
 }
 
@@ -38,10 +38,12 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
         private readonly store: StoreManager,
         private readonly options: DayPartitionManagerOptions,
     ) {
-        if (!Number.isInteger(options.maxDaysRetention) || options.maxDaysRetention <= 0) {
-            throw new Error(`maxDaysRetention must be a positive integer, got: ${options.maxDaysRetention}`);
+        if (options.maxDaysRetention !== -1) {
+            if (!Number.isInteger(options.maxDaysRetention) || options.maxDaysRetention <= 0) {
+                throw new Error(`maxDaysRetention must be a positive integer, got: ${options.maxDaysRetention}`);
+            }
+            void this.pruneOldPartitions();
         }
-        void this.pruneOldPartitions(); // fire-and-forgets
     }
 
     // ================================================================================
@@ -106,7 +108,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
      * Prune old partitions if the number of partitions exceeds the maximum retention.
      */
     private async pruneOldPartitions(): Promise<void> {
-        if (this.isPruning) {
+        if (this.isPruning || this.options.maxDaysRetention <= 0) {
             return;
         }
 
@@ -168,6 +170,10 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
      * @throws Error if the timestamp is older than the retention period
      */
     private assertInRetention(tsSec: number): void {
+        if (this.options.maxDaysRetention === -1) {
+            return; // pruning disabled, all timestamps allowed
+        }
+
         const nowSec = Math.floor(Date.now() / 1_000);
         const secondsInDay = DayPartitionManager.SECONDS_IN_DAY;
 
