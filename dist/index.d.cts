@@ -1,5 +1,5 @@
-import { P as PartitionManager } from './StoreManager-C7ivqce5.cjs';
-export { a as PartitionOptions, S as StoreManager, b as StoreOptions } from './StoreManager-C7ivqce5.cjs';
+import { P as PartitionManager } from './StoreManager-CNamoTIA.cjs';
+export { a as PartitionOptions, S as StoreManager, b as StoreOptions } from './StoreManager-CNamoTIA.cjs';
 import { RootDatabase } from 'lmdb';
 export { CompressionOptions, Database, DatabaseClass, DatabaseOptions, GetOptions, Key, PutOptions, RangeIterable, RangeOptions, RootDatabase, RootDatabaseOptions, RootDatabaseOptionsWithPath, Transaction } from 'lmdb';
 export { S as StatsObject } from './types-RaA__w1F.cjs';

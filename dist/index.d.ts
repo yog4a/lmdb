@@ -1,5 +1,5 @@
-import { P as PartitionManager } from './StoreManager-BIdxJw7d.js';
-export { a as PartitionOptions, S as StoreManager, b as StoreOptions } from './StoreManager-BIdxJw7d.js';
+import { P as PartitionManager } from './StoreManager-HjvfakE4.js';
+export { a as PartitionOptions, S as StoreManager, b as StoreOptions } from './StoreManager-HjvfakE4.js';
 import { RootDatabase } from 'lmdb';
 export { CompressionOptions, Database, DatabaseClass, DatabaseOptions, GetOptions, Key, PutOptions, RangeIterable, RangeOptions, RootDatabase, RootDatabaseOptions, RootDatabaseOptionsWithPath, Transaction } from 'lmdb';
 export { S as StatsObject } from './types-RaA__w1F.js';

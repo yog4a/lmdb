@@ -1,5 +1,5 @@
 import { Key, Database, RootDatabase, DatabaseOptions, RootDatabaseOptions } from 'lmdb';
-import { S as StatsObject } from './types-RaA__w1F.js';
+import { S as StatsObject } from './types-RaA__w1F.cjs';
 
 /**
  * PartitionOptions are the options for a named partition (sub-database) in an LMDB RootDatabase.
@@ -27,7 +27,9 @@ declare class PartitionManager<PK extends Key = Key, PV = any> {
 /**
  * StoreOptions are the options for the root LMDB environment.
  */
-type StoreOptions = RootDatabaseOptions;
+type StoreOptions = RootDatabaseOptions & {
+    path: string;
+};
 /**
  * StoreManager provides operations for a root LMDB environment and its partitions.
  */
@@ -40,9 +42,7 @@ declare class StoreManager {
      * Constructs the StoreManager (Root LMDB environment).
      * @param storeOptions - LMDB root-level options (must include path)
      */
-    constructor(storeOptions: StoreOptions & {
-        path: string;
-    });
+    constructor(storeOptions: StoreOptions);
     /**
      * Return root database statistics.
      */
