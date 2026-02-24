@@ -59,6 +59,20 @@ export class StoreManager {
         return this.store.close(); // Close the root database
     }
 
+    /**
+     * Execute a transaction asynchronously.
+     */
+    public transaction(callback: () => void): Promise<void> {
+        return this.store.transaction(callback);
+    }
+
+    /**
+     * Execute a transaction synchronously.
+     */
+    public transactionSync(callback: () => void): void {
+        return this.store.transactionSync(callback);
+    }
+
     // ================================================================================
     // Partition Operations
     // ================================================================================
