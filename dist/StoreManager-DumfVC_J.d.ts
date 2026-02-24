@@ -52,6 +52,14 @@ declare class StoreManager {
      */
     shutdown(): Promise<void>;
     /**
+     * Execute a transaction asynchronously.
+     */
+    transaction(callback: () => void): Promise<void>;
+    /**
+     * Execute a transaction synchronously.
+     */
+    transactionSync(callback: () => void): void;
+    /**
      * Check if a partition exists.
      */
     hasPartition(partitionName: string): boolean;

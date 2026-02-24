@@ -125,6 +125,18 @@ var StoreManager = class {
     }
     return this.store.close();
   }
+  /**
+   * Execute a transaction asynchronously.
+   */
+  transaction(callback) {
+    return this.store.transaction(callback);
+  }
+  /**
+   * Execute a transaction synchronously.
+   */
+  transactionSync(callback) {
+    return this.store.transactionSync(callback);
+  }
   // ================================================================================
   // Partition Operations
   // ================================================================================
