@@ -1,4 +1,4 @@
-import { StoreManager, PartitionManager, type PartitionOptions } from '../index.js';
+import { StoreManager, type StoreOptions, type PartitionOptions, type Partition } from '../index.js';
 import type { Key } from 'lmdb';
 
 /**
@@ -20,7 +20,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
     /** Seconds in a day */
     private static readonly SECONDS_IN_DAY = 86_400; // 24 hours in seconds (86_400)
     /** Cache of partitions */
-    private readonly partitions = new Map<string, PartitionManager<K, V>>();
+    private readonly partitions = new Map<string, Partition<K, V>>();
     /** Pruning task */
     private isPruning: boolean = false;
 
@@ -71,7 +71,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
     /**
      * Get the partition for a given timestamp.
      */
-    public getPartition(tsSec: number, create = false): PartitionManager<K, V> | undefined {
+    public getPartition(tsSec: number, create = false): Partition<K, V> | undefined {
         this.assertInRetention(tsSec);
         const name = this.partitionName(tsSec);
 
@@ -81,7 +81,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
         }
 
         // Try to open existing
-        let partition: PartitionManager | undefined;
+        let partition: Partition<K, V> | undefined;
         try {
             partition = this.store.openPartition(name, this.options.partitionOptions);
         } catch (error) {
@@ -93,11 +93,11 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
 
         // Cache the partition
         if (partition) {
-            this.partitions.set(name, partition as PartitionManager<K, V>);
+            this.partitions.set(name, partition);
         }
 
         // Return the partition
-        return partition as PartitionManager<K, V> | undefined;
+        return partition;
     }
 
     // ===========================================================
