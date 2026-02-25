@@ -1,12 +1,16 @@
-import { open, type RootDatabase, type RootDatabaseOptions } from 'lmdb';
+import { open, type RootDatabase, type RootDatabaseOptions, type Database, type DatabaseOptions } from 'lmdb';
 import type { StatsObject } from './types.js';
-import { PartitionManager, type PartitionOptions } from './PartitionManager.js';
 import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 
 /**
  * StoreOptions are the options for the root LMDB environment.
  */
 export type StoreOptions = RootDatabaseOptions & { path: string };
+
+/**
+ * PartitionOptions are the options for a named partition (sub-database) in an LMDB RootDatabase.
+ */
+export type PartitionOptions = Omit<DatabaseOptions, 'name'>;
 
 /**
  * StoreManager provides operations for a root LMDB environment and its partitions.
@@ -87,7 +91,7 @@ export class StoreManager {
     /**
      * Create and return a new partition (fails if already exists).
      */
-    public createPartition(partitionName: string, partitionOptions: PartitionOptions): PartitionManager {
+    public createPartition(partitionName: string, partitionOptions: PartitionOptions): Database {
         // Check if the partition already exists
         if (this.store.doesExist(partitionName)) {
             throw new Error(`Partition ${partitionName} already exists!`);
@@ -95,13 +99,13 @@ export class StoreManager {
 
         // Create and open new partition
         const options = { ...partitionOptions, name: partitionName };
-        return new PartitionManager(this.store, options);
+        return this.store.openDB<unknown, string>(options);
     }
 
     /**
      * Open and return a previously created partition (fails if not exists).
      */
-    public openPartition(partitionName: string, partitionOptions: PartitionOptions): PartitionManager {
+    public openPartition(partitionName: string, partitionOptions: PartitionOptions): Database {
         // Check if the partition exists
         if (!this.store.doesExist(partitionName)) {
             throw new Error(`Partition ${partitionName} does not exist!`);
@@ -109,7 +113,7 @@ export class StoreManager {
 
         // Open the partition
         const options = { ...partitionOptions, name: partitionName };
-        return new PartitionManager(this.store, options);
+        return this.store.openDB<unknown, string>(options);
     }
 
     /**
