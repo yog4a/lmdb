@@ -19,7 +19,7 @@ var DayPartitionManager = class _DayPartitionManager {
       if (!Number.isInteger(options.maxDaysRetention) || options.maxDaysRetention <= 0) {
         throw new Error(`maxDaysRetention must be a positive integer, got: ${options.maxDaysRetention}`);
       }
-      void this.pruneOldPartitions();
+      this.pruneOldPartitions();
     }
   }
   static {
@@ -65,7 +65,7 @@ var DayPartitionManager = class _DayPartitionManager {
     } catch (error) {
       if (create) {
         partition = this.store.createPartition(name, this.options.partitionOptions);
-        void this.pruneOldPartitions();
+        this.pruneOldPartitions();
       }
     }
     if (partition) {
@@ -79,7 +79,7 @@ var DayPartitionManager = class _DayPartitionManager {
   /**
    * Prune old partitions if the number of partitions exceeds the maximum retention.
    */
-  async pruneOldPartitions() {
+  pruneOldPartitions() {
     if (this.isPruning || this.options.maxDaysRetention <= 0) {
       return;
     }
@@ -92,25 +92,19 @@ var DayPartitionManager = class _DayPartitionManager {
       const cutoff = this.daySuffix(
         Math.floor(Date.now() / 1e3) - (maxDays - 1) * secondsInDay
       );
-      const allPartitions = await this.store.listPartitions();
       const escapedPrefix = partitionPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const re = new RegExp(`^${escapedPrefix}_(\\d{8})$`);
-      const toDelete = allPartitions.filter((name) => {
+      for (const name of this.store.listPartitions()) {
         const m = re.exec(name);
-        return m && m[1] < cutoff;
-      });
-      await Promise.allSettled(
-        toDelete.map(async (name) => {
-          try {
-            const partition = this.store.openPartition(name, partitionOptions);
-            await partition.drop();
-          } catch (err) {
-            console.error(`Failed to drop partition ${name}`, err);
-          } finally {
-            this.partitions.delete(name);
-          }
-        })
-      );
+        if (!m || m[1] >= cutoff) continue;
+        try {
+          this.store.openPartition(name, partitionOptions).drop();
+        } catch (err) {
+          console.error(`Failed to drop partition ${name}`, err);
+        } finally {
+          this.partitions.delete(name);
+        }
+      }
     } finally {
       this.isPruning = false;
     }
@@ -149,67 +143,36 @@ var DayPartitionManager = class _DayPartitionManager {
   }
 };
 
-// src/plugins/ReaderCheckManager.ts
-var ReaderCheckManager = class {
-  /**
-   * Creates a new ReaderCheckManager instance.
-   * @param database - The LMDB root database to manage reader checks for
-   * @param options - Configuration options for reader check behavior
-   */
-  constructor(database, options) {
-    this.database = database;
-    this.options = options;
-    if (options.initialCheck) {
-      this.check();
-    }
-    if (options.periodicMs > 0) {
-      this.start();
-    }
-  }
+// src/plugins/MetadataManager.ts
+var MetadataManager = class {
   static {
-    __name(this, "ReaderCheckManager");
+    __name(this, "MetadataManager");
   }
-  /** Timer for periodic reader checks */
-  timer = null;
+  /** Metadata partition */
+  partition;
   /**
-   * Manually trigger a reader check to clean up stale locks.
-   * Safe to call even if the database doesn't support reader checks.
+   * Constructor
+   * @param storeManager - Store manager
    */
-  check() {
-    try {
-      this.database.readerCheck();
-    } catch {
-    }
-  }
-  /**
-   * Start periodic reader checks (if not already running).
-   */
-  start() {
-    if (this.timer) {
-      return;
-    }
-    this.timer = setInterval(() => {
-      this.check();
-    }, this.options.periodicMs);
-    this.timer.unref();
-  }
-  /**
-   * Stop periodic reader checks and clean up resources.
-   * Should be called before closing the database.
-   */
-  stop() {
-    this.check();
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-  }
-  /**
-   * Check if periodic reader checks are currently running.
-   */
-  isRunning() {
-    return this.timer !== null;
+  constructor(storeManager) {
+    this.partition = storeManager.openOrCreatePartition("__metadata", {
+      encoding: "msgpack",
+      // Always treat metadata as msgpack (faster than json)
+      //keyEncoding: undefined,           // Use string keys (default, undefined)
+      cache: false,
+      // No small cache needed for metadata usage  
+      compression: false,
+      // Disable compression (small amount of data)
+      sharedStructuresKey: void 0,
+      // No shared structures key
+      useVersions: false,
+      // No versions
+      dupSort: false,
+      // No duplicate sorting
+      strictAsyncOrder: false
+      // No strict async order
+    });
   }
 };
 
-export { DayPartitionManager, ReaderCheckManager };
+export { DayPartitionManager, MetadataManager };

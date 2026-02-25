@@ -1,6 +1,6 @@
 import type { RootDatabase, RangeOptions, RangeIterable, RootDatabaseOptions } from 'lmdb';
 import { open } from 'lmdb';
-import { StatsObject } from '../index.js';
+import type { PartitionStats } from '../core/types.js';
 
 // ===========================================================
 // Types
@@ -126,8 +126,8 @@ export class LmdbMap<K extends LmdbMapKey = LmdbMapKey, V = any> {
      * Retrieve database statistics (such as entry count, total size, settings, etc).
      * @returns An object of LMDB statistics for this database.
      */
-    public stats(): StatsObject {
-        return this.database.getStats() as StatsObject;
+    public stats(): PartitionStats {
+        return this.database.getStats() as PartitionStats;
     }
 
     // ===========================================================

@@ -126,28 +126,38 @@ var StoreManager = class {
   /**
    * Check if a partition exists.
    */
-  hasPartition(partitionName) {
-    return this.store.doesExist(partitionName);
+  hasPartition(name) {
+    return this.store.doesExist(name);
   }
   /**
    * Create and return a new partition (fails if already exists).
    */
-  createPartition(pName, pOptions) {
-    if (this.store.doesExist(pName)) {
-      throw new Error(`Partition ${pName} already exists!`);
+  createPartition(name, options) {
+    if (this.store.doesExist(name)) {
+      throw new Error(`Partition ${name} already exists!`);
     }
-    const options = { ...pOptions, name: pName };
-    return this.store.openDB(options);
+    return this.store.openDB({ ...options, name });
   }
   /**
    * Open and return a previously created partition (fails if not exists).
    */
-  openPartition(pName, pOptions) {
-    if (!this.store.doesExist(pName)) {
-      throw new Error(`Partition ${pName} does not exist!`);
+  openPartition(name, options) {
+    if (!this.store.doesExist(name)) {
+      throw new Error(`Partition ${name} does not exist!`);
     }
-    const options = { ...pOptions, name: pName };
-    return this.store.openDB(options);
+    return this.store.openDB({ ...options, name });
+  }
+  /**
+   * Open existing partition or create it on first run.
+   */
+  openOrCreatePartition(name, options) {
+    let partition;
+    try {
+      partition = this.openPartition(name, options);
+    } catch {
+      partition = this.createPartition(name, options);
+    }
+    return partition;
   }
   /**
    * List all top-level databases (partitions).
@@ -157,27 +167,4 @@ var StoreManager = class {
   }
 };
 
-// src/core/MetadataManager.ts
-var MetadataManager = /* @__PURE__ */ __name((rootDatabase) => {
-  return rootDatabase.openDB({
-    name: "__metadata",
-    // Reserved partition name for metadata
-    encoding: "msgpack",
-    // Always treat metadata as msgpack (faster than json)
-    //keyEncoding: undefined,           // Use string keys (default, undefined)
-    cache: false,
-    // No small cache needed for metadata usage  
-    compression: false,
-    // Disable compression (small amount of data)
-    sharedStructuresKey: void 0,
-    // No shared structures key
-    useVersions: false,
-    // No versions
-    dupSort: false,
-    // No duplicate sorting
-    strictAsyncOrder: false
-    // No strict async order
-  });
-}, "MetadataManager");
-
-export { MetadataManager, StoreManager };
+export { StoreManager };

@@ -1,7 +1,6 @@
-import { b as StoreManager, a as PartitionOptions, P as Partition } from './StoreManager-CD2288hZ.cjs';
+import { StoreManager } from './index.cjs';
+import { P as PartitionOptions, a as Partition } from './types-CpgAh14B.cjs';
 import { Key } from 'lmdb';
-export { R as ReaderCheckManager, a as ReaderCheckOptions } from './ReaderCheckManager-DSK42LDW.cjs';
-import './types-RaA__w1F.cjs';
 
 /**
  * Options for the DayPartitionManager.
@@ -11,7 +10,7 @@ interface DayPartitionManagerOptions {
     partitionPrefix: string;
     /** Partition options */
     partitionOptions: PartitionOptions;
-    /** Maximum days retention (-1 to disable pruning) */
+    /** Maximum days retention (-1 to disable pruning for reader) */
     maxDaysRetention: number;
 }
 /**
@@ -21,7 +20,7 @@ declare class DayPartitionManager<K extends Key = Key, V = any> {
     private readonly store;
     private readonly options;
     /** Seconds in a day */
-    private static readonly SECONDS_IN_DAY;
+    static readonly SECONDS_IN_DAY = 86400;
     /** Cache of partitions */
     private readonly partitions;
     /** Pruning task */
@@ -66,4 +65,17 @@ declare class DayPartitionManager<K extends Key = Key, V = any> {
     private assertInRetention;
 }
 
-export { DayPartitionManager, type DayPartitionManagerOptions };
+/**
+ * MetadataManager provides operations for the metadata partition in an LMDB Store.
+ */
+declare class MetadataManager {
+    /** Metadata partition */
+    readonly partition: Partition<string, unknown>;
+    /**
+     * Constructor
+     * @param storeManager - Store manager
+     */
+    constructor(storeManager: StoreManager);
+}
+
+export { DayPartitionManager, type DayPartitionManagerOptions, MetadataManager };
