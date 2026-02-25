@@ -1,7 +1,7 @@
 {
   "name": "@yog4a/lmdb",
   "description": "Personal encapsulation module for lmdb",
-  "version": "0.9.2",
+  "version": "0.10.0",
   "author": "Yog4a",
   "type": "module",
   "scripts": {
