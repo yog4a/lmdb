@@ -1,14 +1,24 @@
-import { open, type RootDatabase, type RootDatabaseOptions, type Database, type DatabaseOptions } from 'lmdb';
+import { open, type RootDatabase, type RootDatabaseOptions, type Database, type DatabaseOptions, type Key } from 'lmdb';
 import type { StatsObject } from './types.js';
 import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
+
+/**
+ * Store is the root LMDB environment.
+ */
+export type Store<PK extends Key, PV = any> = RootDatabase<PV, PK>;
 
 /**
  * StoreOptions are the options for the root LMDB environment.
  */
 export type StoreOptions = RootDatabaseOptions & { path: string };
-
+  
 /**
- * PartitionOptions are the options for a named partition (sub-database) in an LMDB RootDatabase.
+ * Partition is a named partition (sub-database) in an LMDB Store.
+ */
+export type Partition<PK extends Key, PV = any> = Database<PV, PK>;
+  
+/**
+ * PartitionOptions are the options for a named partition (sub-database) in an LMDB Store.
  */
 export type PartitionOptions = Omit<DatabaseOptions, 'name'>;
 
@@ -17,7 +27,7 @@ export type PartitionOptions = Omit<DatabaseOptions, 'name'>;
  */
 export class StoreManager {
     /** LMDB root database (environment) */
-    private readonly store: RootDatabase<unknown, string>;
+    private readonly store: Store<string, unknown>;
     /** Reader check manager (to avoid reader locks) */
     private readonly readerCheckManager: ReaderCheckManager;
 
@@ -91,29 +101,29 @@ export class StoreManager {
     /**
      * Create and return a new partition (fails if already exists).
      */
-    public createPartition(partitionName: string, partitionOptions: PartitionOptions): Database {
+    public createPartition<PK extends Key, PV = any>(pName: string, pOptions: PartitionOptions): Partition<PK, PV> {
         // Check if the partition already exists
-        if (this.store.doesExist(partitionName)) {
-            throw new Error(`Partition ${partitionName} already exists!`);
+        if (this.store.doesExist(pName)) {
+            throw new Error(`Partition ${pName} already exists!`);
         }
 
         // Create and open new partition
-        const options = { ...partitionOptions, name: partitionName };
-        return this.store.openDB<unknown, string>(options);
+        const options = { ...pOptions, name: pName };
+        return this.store.openDB<PV, PK>(options);
     }
 
     /**
      * Open and return a previously created partition (fails if not exists).
      */
-    public openPartition(partitionName: string, partitionOptions: PartitionOptions): Database {
+    public openPartition<PK extends Key, PV = any>(pName: string, pOptions: PartitionOptions): Partition<PK, PV> {
         // Check if the partition exists
-        if (!this.store.doesExist(partitionName)) {
-            throw new Error(`Partition ${partitionName} does not exist!`);
+        if (!this.store.doesExist(pName)) {
+            throw new Error(`Partition ${pName} does not exist!`);
         }
 
         // Open the partition
-        const options = { ...partitionOptions, name: partitionName };
-        return this.store.openDB<unknown, string>(options);
+        const options = { ...pOptions, name: pName };
+        return this.store.openDB<PV, PK>(options);
     }
 
     /**
@@ -121,5 +131,5 @@ export class StoreManager {
      */
     public listPartitions(): Promise<string[]> {
         return this.store.getKeys().asArray;
-    }
+    };
 }
