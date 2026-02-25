@@ -5,7 +5,7 @@ import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 /**
  * Store is the root LMDB environment.
  */
-export type Store<PK extends Key, PV = any> = RootDatabase<PV, PK>;
+export type Store = RootDatabase<unknown, string>;
 
 /**
  * StoreOptions are the options for the root LMDB environment.
@@ -27,7 +27,7 @@ export type PartitionOptions = Omit<DatabaseOptions, 'name'>;
  */
 export class StoreManager {
     /** LMDB root database (environment) */
-    private readonly store: Store<string, unknown>;
+    private readonly store: Store;
     /** Reader check manager (to avoid reader locks) */
     private readonly readerCheckManager: ReaderCheckManager;
 
@@ -129,7 +129,7 @@ export class StoreManager {
     /**
      * List all top-level databases (partitions).
      */
-    public listPartitions(): Promise<string[]> {
-        return this.store.getKeys().asArray;
-    };
+    public listPartitions(): string[] {
+        return [...this.store.getKeys()];
+    }
 }
