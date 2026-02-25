@@ -1,10 +1,10 @@
 import { Key, Database, DatabaseOptions, RootDatabase, RootDatabaseOptions } from 'lmdb';
-import { S as StatsObject } from './types-RaA__w1F.js';
+import { S as StatsObject } from './types-RaA__w1F.cjs';
 
 /**
  * Store is the root LMDB environment.
  */
-type Store<PK extends Key, PV = any> = RootDatabase<PV, PK>;
+type Store = RootDatabase<unknown, string>;
 /**
  * StoreOptions are the options for the root LMDB environment.
  */
@@ -63,7 +63,7 @@ declare class StoreManager {
     /**
      * List all top-level databases (partitions).
      */
-    listPartitions(): Promise<string[]>;
+    listPartitions(): string[];
 }
 
 export { type Partition as P, type Store as S, type PartitionOptions as a, StoreManager as b, type StoreOptions as c };

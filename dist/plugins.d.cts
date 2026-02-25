@@ -1,4 +1,4 @@
-import { b as StoreManager, a as PartitionOptions, P as Partition } from './StoreManager-DiVSnWnb.cjs';
+import { b as StoreManager, a as PartitionOptions, P as Partition } from './StoreManager-CD2288hZ.cjs';
 import { Key } from 'lmdb';
 export { R as ReaderCheckManager, a as ReaderCheckOptions } from './ReaderCheckManager-DSK42LDW.cjs';
 import './types-RaA__w1F.cjs';

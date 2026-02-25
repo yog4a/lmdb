@@ -153,7 +153,7 @@ var StoreManager = class {
    * List all top-level databases (partitions).
    */
   listPartitions() {
-    return this.store.getKeys().asArray;
+    return [...this.store.getKeys()];
   }
 };
 
