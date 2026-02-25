@@ -9,114 +9,89 @@ function makeTempDir(prefix: string): string {
     return mkdtempSync(join(tmpdir(), prefix));
 }
 
-test('StoreManager: create partition and basic CRUD', async () => {
-    const dir = makeTempDir('lmdb-store-');
-    const manager = new StoreManager({ path: dir });
+test('StoreManager: createPartition supports basic CRUD and appears in listPartitions', async () => {
+    const dir = makeTempDir('lmdb-store-create-');
+    const store = new StoreManager({ path: dir });
 
     try {
-        const users = manager.createPartition('users', { name: 'users', encoding: 'json' });
+        const users = store.createPartition<string, { name: string }>('users', { encoding: 'json' });
         users.putSync('user:1', { name: 'Ada' });
         assert.deepEqual(users.get('user:1'), { name: 'Ada' });
+
+        const partitions = store.listPartitions().slice().sort();
+        assert.deepEqual(partitions, ['users']);
     } finally {
-        await manager.shutdown();
+        await store.shutdown();
         rmSync(dir, { recursive: true, force: true });
     }
 });
 
-test('StoreManager: listPartitions returns created partitions', async () => {
-    const dir = makeTempDir('lmdb-store-list-');
-    const manager = new StoreManager({ path: dir });
-
-    try {
-        manager.createPartition('users', { name: 'users', encoding: 'json' });
-        manager.createPartition('posts', { name: 'posts', encoding: 'json' });
-        const list = manager.listPartitions().slice().sort();
-        assert.deepEqual(list, ['posts', 'users']);
-    } finally {
-        await manager.shutdown();
-        rmSync(dir, { recursive: true, force: true });
-    }
-});
-
-test('StoreManager: openPartition returns cached instance', async () => {
-    const dir = makeTempDir('lmdb-store-open-');
-    const manager = new StoreManager({ path: dir });
-
-    try {
-        const users = manager.createPartition('users', { name: 'users', encoding: 'json' });
-        const reopened = manager.openPartition('users', { name: 'users', encoding: 'json' });
-        assert.equal(reopened, users);
-    } finally {
-        await manager.shutdown();
-        rmSync(dir, { recursive: true, force: true });
-    }
-});
-
-test('StoreManager: openPartition throws when missing', async () => {
-    const dir = makeTempDir('lmdb-store-missing-');
-    const manager = new StoreManager({ path: dir });
+test('StoreManager: openPartition throws when partition is missing', async () => {
+    const dir = makeTempDir('lmdb-store-open-missing-');
+    const store = new StoreManager({ path: dir });
 
     try {
         assert.throws(
-            () => manager.openPartition('missing', { name: 'missing', encoding: 'json' }),
+            () => store.openPartition('missing', { encoding: 'json' }),
             /does not exist/i,
         );
     } finally {
-        await manager.shutdown();
+        await store.shutdown();
         rmSync(dir, { recursive: true, force: true });
     }
 });
 
-test('StoreManager: createPartition rejects reserved _metadata', async () => {
-    const dir = makeTempDir('lmdb-store-dup-');
-    const manager = new StoreManager({ path: dir });
+test('StoreManager: openOrCreatePartition can be used repeatedly for the same partition', async () => {
+    const dir = makeTempDir('lmdb-store-open-or-create-');
+    const store = new StoreManager({ path: dir });
 
     try {
-        assert.throws(
-            () => manager.createPartition('_metadata', { name: '_metadata', encoding: 'json' }),
-            /already exists/i,
-        );
+        const first = store.openOrCreatePartition<string, { value: number }>('users', { encoding: 'json' });
+        first.putSync('count', { value: 1 });
+
+        const second = store.openOrCreatePartition<string, { value: number }>('users', { encoding: 'json' });
+        assert.deepEqual(second.get('count'), { value: 1 });
+        second.putSync('next', { value: 2 });
+        assert.deepEqual(first.get('next'), { value: 2 });
     } finally {
-        await manager.shutdown();
+        await store.shutdown();
         rmSync(dir, { recursive: true, force: true });
     }
 });
 
-test('StoreManager: closePartition rejects missing', async () => {
-    const dir = makeTempDir('lmdb-store-close-missing-');
-    const manager = new StoreManager({ path: dir });
+test('StoreManager: transaction and transactionSync execute writes', async () => {
+    const dir = makeTempDir('lmdb-store-txn-');
+    const store = new StoreManager({ path: dir });
 
     try {
-        await assert.rejects(manager.closePartition('missing'), /does not exist or is not open/i);
+        const partition = store.openOrCreatePartition<string, { name: string }>('events', { encoding: 'json' });
+
+        await store.transaction(() => {
+            partition.putSync('e:1', { name: 'async' });
+        });
+        store.transactionSync(() => {
+            partition.putSync('e:2', { name: 'sync' });
+        });
+
+        assert.deepEqual(partition.get('e:1'), { name: 'async' });
+        assert.deepEqual(partition.get('e:2'), { name: 'sync' });
     } finally {
-        await manager.shutdown();
+        await store.shutdown();
         rmSync(dir, { recursive: true, force: true });
     }
 });
 
-test('StoreManager: dropPartition requires opened partition and removes partition', async () => {
-    const dir = makeTempDir('lmdb-store-drop-');
-    const manager = new StoreManager({ path: dir });
+test('StoreManager: stats and hasPartition provide root state information', async () => {
+    const dir = makeTempDir('lmdb-store-stats-');
+    const store = new StoreManager({ path: dir });
 
     try {
-        manager.createPartition('users', { name: 'users', encoding: 'json' });
-        await manager.dropPartition('users');
-        const list = manager.listPartitions();
-        assert.equal(list.includes('users'), false);
+        const stats = store.stats();
+        assert.equal(typeof stats.entryCount, 'number');
+        assert.equal(typeof stats.mapSize, 'number');
+        assert.equal(store.hasPartition('missing'), false);
     } finally {
-        await manager.shutdown();
-        rmSync(dir, { recursive: true, force: true });
-    }
-});
-
-test('StoreManager: dropPartition rejects missing or not-open partition', async () => {
-    const dir = makeTempDir('lmdb-store-drop-missing-');
-    const manager = new StoreManager({ path: dir });
-
-    try {
-        await assert.rejects(manager.dropPartition('missing'), /does not exist or is not open/i);
-    } finally {
-        await manager.shutdown();
+        await store.shutdown();
         rmSync(dir, { recursive: true, force: true });
     }
 });

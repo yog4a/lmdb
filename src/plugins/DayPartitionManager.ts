@@ -1,4 +1,4 @@
-import { StoreManager, type StoreOptions, type PartitionOptions, type Partition } from '../index.js';
+import { StoreManager, type PartitionOptions, type Partition } from '../index.js';
 import type { Key } from 'lmdb';
 
 /**
@@ -9,7 +9,7 @@ export interface DayPartitionManagerOptions {
     partitionPrefix: string;
     /** Partition options */
     partitionOptions: PartitionOptions;
-    /** Maximum days retention (-1 to disable pruning) */
+    /** Maximum days retention (-1 to disable pruning for reader) */
     maxDaysRetention: number;
 }
 
@@ -18,7 +18,7 @@ export interface DayPartitionManagerOptions {
  */
 export class DayPartitionManager<K extends Key = Key, V = any> {
     /** Seconds in a day */
-    private static readonly SECONDS_IN_DAY = 86_400; // 24 hours in seconds (86_400)
+    static readonly SECONDS_IN_DAY = 86_400; // 24 hours in seconds (86_400)
     /** Cache of partitions */
     private readonly partitions = new Map<string, Partition<K, V>>();
     /** Pruning task */
@@ -42,7 +42,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
             if (!Number.isInteger(options.maxDaysRetention) || options.maxDaysRetention <= 0) {
                 throw new Error(`maxDaysRetention must be a positive integer, got: ${options.maxDaysRetention}`);
             }
-            void this.pruneOldPartitions();
+            this.pruneOldPartitions();
         }
     }
 
@@ -87,7 +87,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
         } catch (error) {
             if (create) {
                 partition = this.store.createPartition(name, this.options.partitionOptions);
-                void this.pruneOldPartitions(); // fire-and-forgets
+                this.pruneOldPartitions();
             }
         }
 
@@ -107,7 +107,7 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
     /**
      * Prune old partitions if the number of partitions exceeds the maximum retention.
      */
-    private async pruneOldPartitions(): Promise<void> {
+    private pruneOldPartitions(): void {
         if (this.isPruning || this.options.maxDaysRetention <= 0) {
             return;
         }
@@ -124,28 +124,20 @@ export class DayPartitionManager<K extends Key = Key, V = any> {
                 Math.floor(Date.now() / 1000) - (maxDays - 1) * secondsInDay
             );
 
-            const allPartitions = await this.store.listPartitions();
-
             const escapedPrefix = partitionPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const re = new RegExp(`^${escapedPrefix}_(\\d{8})$`);
 
-            const toDelete = allPartitions.filter(name => {
+            for (const name of this.store.listPartitions()) {
                 const m = re.exec(name);
-                return m && m[1]! < cutoff;
-            });
-
-            await Promise.allSettled(
-                toDelete.map(async name => {
-                    try {
-                        const partition = this.store.openPartition(name, partitionOptions);
-                        await partition.drop();
-                    } catch (err) {
-                        console.error(`Failed to drop partition ${name}`, err);
-                    } finally {
-                        this.partitions.delete(name);
-                    }
-                })
-            );
+                if (!m || m[1]! >= cutoff) continue;
+                try {
+                    this.store.openPartition(name, partitionOptions).drop();
+                } catch (err) {
+                    console.error(`Failed to drop partition ${name}`, err);
+                } finally {
+                    this.partitions.delete(name);
+                }
+            }
         } finally {
             this.isPruning = false;
         }

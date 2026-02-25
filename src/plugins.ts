@@ -1,2 +1,3 @@
-export * from "./plugins/DayPartitionManager.js";   
-export * from "./plugins/ReaderCheckManager.js";
+// Plugins
+export * from "./plugins/DayPartitionManager.js";
+export * from "./plugins/MetadataManager.js";

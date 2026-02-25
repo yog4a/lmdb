@@ -1,17 +1,37 @@
-// ===========================================================
-// Types
-// ===========================================================
+import type { RootDatabase, RootDatabaseOptions, Database, DatabaseOptions, Key } from 'lmdb';
 
-export interface StatsObject {
-    // === Database Statistics ===
-    pageSize: number;              // Size of a database page (in bytes)
-    treeDepth: number;             // Depth (height) of the B-tree
-    treeBranchPageCount: number;   // Number of internal (non-leaf) pages
-    treeLeafPageCount: number;     // Number of leaf pages
-    entryCount: number;            // Number of data items/entries
-    overflowPages: number;         // Number of overflow pages
+/**
+ * Store is the root LMDB environment.
+ */
+export type Store = RootDatabase<unknown, string>;
 
-    // === Root Database Statistics (root environment) ===
+/**
+ * StoreOptions are the options for the root LMDB environment.
+ */
+export type StoreOptions = RootDatabaseOptions & { path: string };
+  
+/**
+ * Partition is a named partition (sub-database) in an LMDB Store.
+ */
+export type Partition<PK extends Key, PV = any> = Database<PV, PK>;
+  
+/**
+ * PartitionOptions are the options for a named partition (sub-database) in an LMDB Store.
+ */
+export type PartitionOptions = Omit<DatabaseOptions, 'name'>;
+
+/**
+ * PartitionStats represents the statistics returned by LMDB for a partition.
+ */
+export interface PartitionStats {
+    // Basic statistics about the current database
+    pageSize: number;                // Database page size in bytes
+    treeDepth: number;               // Depth (height) of the B-tree
+    treeBranchPageCount: number;     // Count of internal (branch) B-tree pages
+    treeLeafPageCount: number;       // Count of leaf B-tree pages
+    entryCount: number;              // Number of items in the database
+    overflowPages: number;           // Number of overflow pages
+    // Statistics on the root environment (aka "main" database)
     root: {
         pageSize: number;
         treeDepth: number;
@@ -20,15 +40,13 @@ export interface StatsObject {
         entryCount: number;
         overflowPages: number;
     };
-
-    // === Environment Info ===
-    mapSize: number;               // Size of the data memory map (in bytes)
-    lastPageNumber: number;        // ID of the last used page
-    lastTxnId: number;             // ID of the last committed transaction
-    maxReaders: number;            // Maximum reader slots in the environment
-    numReaders: number;            // Number of reader slots currently in use
-
-    // === Free Space Statistics ===
+    // LMDB environment/global info
+    mapSize: number;                 // Bytes mapped in memory for the environment
+    lastPageNumber: number;          // ID of the last used page
+    lastTxnId: number;               // Most recent committed transaction ID
+    maxReaders: number;              // Maximum allowed concurrent readers
+    numReaders: number;              // Current reader slots in use
+    // Info about the freelist database
     free: {
         pageSize: number;
         treeDepth: number;
@@ -37,17 +55,16 @@ export interface StatsObject {
         entryCount: number;
         overflowPages: number;
     };
-
-    // === Optional Metrics (only if trackMetrics is enabled) ===
-    timeStartTxns?: number;        // Time starting transactions (in seconds)
-    timeDuringTxns?: number;       // Time during transactions (in seconds)
-    timePageFlushes?: number;      // Time for page flushes (in seconds)
-    timeSync?: number;             // Time for sync operations (in seconds)
-    timeTxnWaiting?: number;       // Time waiting for transactions (in seconds)
-    txns?: number;                 // Total number of transactions
-    pageFlushes?: number;          // Number of page flushes
-    pagesWritten?: number;         // Number of pages written
-    writes?: number;               // Total number of writes
-    puts?: number;                 // Number of put operations
-    deletes?: number;              // Number of delete operations
+    // Optional extra live tracking metrics
+    timeStartTxns?: number;          // Total time starting transactions, in seconds
+    timeDuringTxns?: number;         // Total transaction active time, in seconds
+    timePageFlushes?: number;        // Total time flushing pages, in seconds
+    timeSync?: number;               // Total time spent on fsync, in seconds
+    timeTxnWaiting?: number;         // Total time transactions spent waiting, in seconds
+    txns?: number;                   // Total number of transactions performed
+    pageFlushes?: number;            // Total number of page flushes
+    pagesWritten?: number;           // Total number of pages written
+    writes?: number;                 // Total number of LMDB write calls
+    puts?: number;                   // Total number of put operations
+    deletes?: number;                // Total number of delete operations
 }
