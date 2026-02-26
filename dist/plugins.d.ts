@@ -1,5 +1,4 @@
-import { StoreManager } from './index.js';
-import { P as PartitionOptions, a as Partition } from './types-CpgAh14B.js';
+import { StoreManager, PartitionOptions, Partition } from './index.js';
 import { Key } from 'lmdb';
 
 /**

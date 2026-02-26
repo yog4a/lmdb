@@ -4,165 +4,6 @@ var lmdb = require('lmdb');
 
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
-var LmdbMap = class {
-  static {
-    __name(this, "LmdbMap");
-  }
-  /** The underlying LMDB root database instance */
-  database;
-  // ===========================================================
-  // Constructor
-  // ===========================================================
-  /**
-   * Constructs a LmdbMap and opens (or creates) the LMDB environment at the specified path.
-   * @param path - Filesystem directory for the LMDB environment.
-   * @param options - (Optional) Override default options for the LMDB root environment.
-   */
-  constructor(path, options = {}) {
-    this.database = lmdb.open({
-      path,
-      // Filesystem path for LMDB environment storage
-      maxDbs: 1,
-      // Only use the root database; no additional sub-databases needed
-      maxReaders: 1,
-      // Supports up to 1 simultaneous read transaction
-      keyEncoding: "ordered-binary",
-      // Ensures keys are ordered binary for efficient range scans and correct key ordering
-      encoding: "msgpack",
-      // Store and retrieve values as JSON (automatic serialization/deserialization)
-      compression: false,
-      // Compression disabled for best write and read performance
-      mapSize: 64 * 1024 ** 2,
-      // Preallocate 64MB: 10K items ~ 1-10MB max
-      remapChunks: true,
-      // Let LMDB automatically expand the map size if needed
-      pageSize: 4096,
-      // Use standard 4 KB OS page size for optimal compatibility and IO
-      noMemInit: true,
-      // Skip memory zeroing for new pages to accelerate allocation (safe in LMDB)
-      commitDelay: 0,
-      // No batch commit operations to increase throughput under load
-      eventTurnBatching: true,
-      // Group multiple async writes in an event loop tick for optimal efficiency
-      noSync: false,
-      // Enable fsync calls for durability on crash
-      noMetaSync: false,
-      // Enable syncing metadata to further boost write speed (lowers durability)
-      cache: true,
-      // Enable small built-in key/value cache to speed up hot key access
-      overlappingSync: false,
-      // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
-      ...options,
-      readOnly: false
-    });
-  }
-  // ===========================================================
-  // Read-only methods
-  // ===========================================================
-  /**
-   * Determine whether a key exists in the map.
-   * @param key - The key to check for existence.
-   * @returns true if the key is present, false otherwise.
-   */
-  has(key) {
-    return this.database.doesExist(key);
-  }
-  /**
-   * Retrieve the value for a given key.
-   * @param key - Key whose value to fetch.
-   * @param options - (Optional) Additional get options (e.g., transaction)
-   * @returns The value associated with the key, or undefined if not present.
-   */
-  get(key) {
-    return this.database.get(key);
-  }
-  /**
-   * Retrieve the values for multiple keys.
-   * @param keys - Keys whose values to fetch.
-   * @returns A promise that resolves to an array of values, or undefined if not present.
-   */
-  getMany(keys) {
-    return this.database.getMany(keys);
-  }
-  /**
-   * Get the total number of entries in the database, optionally filtered by range.
-   * @param options - (Optional) Range options to restrict the count.
-   * @returns The number of matching entries.
-   */
-  size(options) {
-    return this.database.getCount(options);
-  }
-  /**
-   * Return an iterable over all keys, optionally filtered and/or ordered.
-   * @param options - (Optional) Range options (start, end, reverse, etc.).
-   * @returns Iterable of keys as strings.
-   */
-  keys(options) {
-    return this.database.getKeys(options);
-  }
-  /** 
-   * Return an iterable over all values, optionally filtered and/or ordered.
-   * @param options - (Optional) Range options (start, end, reverse, etc.).
-   * @returns Iterable of values.
-   */
-  values(options) {
-    return this.database.getRange(options).map((entry) => entry.value);
-  }
-  /**
-   * Return an iterable of all {key, value} entries in the database.
-   * @param options - (Optional) Range options to filter or order entries.
-   * @returns Iterable of { key, value } objects.
-   */
-  entries(options) {
-    return this.database.getRange(options);
-  }
-  /**
-   * Retrieve database statistics (such as entry count, total size, settings, etc).
-   * @returns An object of LMDB statistics for this database.
-   */
-  stats() {
-    return this.database.getStats();
-  }
-  // ===========================================================
-  // Write methods
-  // ===========================================================
-  /**
-   * Insert a new value or update the value for the given key.
-   * @param key - Key to insert or update.
-   * @param value - Value to associate with the key.
-   * @param options - (Optional) Additional put options.
-   */
-  set(key, value) {
-    return this.database.putSync(key, value);
-  }
-  /**
-   * Remove an entry by key (or a specific value if using duplicate keys).
-   * @param key - Key whose entry to remove.
-   * @param valueToRemove - (Optional) Only remove if value matches (for dupSort databases).
-   * @returns true if an entry was deleted, false if not found.
-   */
-  del(key) {
-    return this.database.removeSync(key);
-  }
-  /**
-   * Remove all entries from the database.
-   * @param confirm - Whether to confirm the action.
-   */
-  clear(confirm = false) {
-    if (confirm !== true) {
-      throw new Error("Set confirm to true to clear the database! This action is irreversible.");
-    }
-    this.database.clearSync();
-  }
-  /**
-   * Run a function within a database transaction.
-   * @param fn - The function to execute with transaction context. Must be synchronous. Do NOT `await` inside it!
-   * @returns The result of the provided function.
-   */
-  transaction(fn) {
-    return this.database.transaction(fn);
-  }
-};
 
 // src/plugins/ReaderCheckManager.ts
 var ReaderCheckManager = class {
@@ -227,263 +68,40 @@ var ReaderCheckManager = class {
   }
 };
 
-// src/modules/Cache.ts
-var LmdbCache = class {
-  static {
-    __name(this, "LmdbCache");
-  }
-  /** The underlying LMDB root database instance */
-  database;
-  /** Reader check manager */
-  readerCheckManager;
-  /**
-   * Constructs a StoreMap and opens (or creates) the root LMDB environment at the specified path.
-   * @param path - Filesystem directory for the LMDB environment.
-   * @param options - (Optional) Override default options for the LMDB root environment.
-   * @param readOnly - Whether the database should be opened in read-only mode (default: true).
-   */
-  constructor(path, options = {}, readOnly = true) {
-    this.database = lmdb.open({
-      path,
-      // Filesystem path for LMDB environment storage
-      maxDbs: 1,
-      // Only use the root database; no additional sub-databases needed
-      maxReaders: 64,
-      // Supports up to 64 simultaneous read transactions
-      keyEncoding: "ordered-binary",
-      // Ensures keys are ordered binary for efficient range scans and correct key ordering
-      encoding: "msgpack",
-      // Store and retrieve values as JSON (automatic serialization/deserialization)
-      compression: false,
-      // Compression disabled for best write and read performance
-      mapSize: 64 * 1024 ** 2,
-      // Preallocate 64MB: 10K items ~ 1-10MB max
-      remapChunks: true,
-      // Let LMDB automatically expand the map size if needed
-      pageSize: 4096,
-      // Use standard 4 KB OS page size for optimal compatibility and IO
-      noMemInit: true,
-      // Skip memory zeroing for new pages to accelerate allocation (safe in LMDB)
-      commitDelay: 0,
-      // No batch commit operations to increase throughput under load
-      eventTurnBatching: true,
-      // Group multiple async writes in an event loop tick for optimal efficiency
-      noSync: false,
-      // Enable fsync calls for durability on crash
-      noMetaSync: false,
-      // Enable syncing metadata to further boost write speed (lowers durability)
-      cache: true,
-      // Enable small built-in key/value cache to speed up hot key access
-      overlappingSync: false,
-      // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
-      ...options,
-      readOnly
-    });
-    this.readerCheckManager = new ReaderCheckManager(this.database, {
-      periodicMs: 15 * 6e4,
-      // 15 minutes
-      initialCheck: true
-    });
-  }
-  // ===========================================================
-  // Read-only methods
-  // ===========================================================
-  /**
-   * Determine whether a key exists in the map.
-   * @param key - The key to check for existence.
-   * @returns true if the key is present, false otherwise.
-   */
-  has(key) {
-    return this.database.doesExist(key);
-  }
-  /**
-   * Retrieve the value for a given key.
-   * @param key - Key whose value to fetch.
-   * @param options - (Optional) Additional get options (e.g., transaction)
-   * @returns The value associated with the key, or undefined if not present.
-   */
-  get(key) {
-    return this.database.get(key);
-  }
-  /**
-   * Retrieve the values for multiple keys.
-   * @param keys - Keys whose values to fetch.
-   * @returns A promise that resolves to an array of values, or undefined if not present.
-   */
-  getMany(keys) {
-    return this.database.getMany(keys);
-  }
-  /**
-   * Get the total number of entries in the database, optionally filtered by range.
-   * @param options - (Optional) Range options to restrict the count.
-   * @returns The number of matching entries.
-   */
-  size(options) {
-    return this.database.getCount(options);
-  }
-  /**
-   * Return an iterable over all keys, optionally filtered and/or ordered.
-   * @param options - (Optional) Range options (start, end, reverse, etc.).
-   * @returns Iterable of keys as strings.
-   */
-  keys(options) {
-    return this.database.getKeys(options);
-  }
-  /** 
-   * Return an iterable over all values, optionally filtered and/or ordered.
-   * @param options - (Optional) Range options (start, end, reverse, etc.).
-   * @returns Iterable of values.
-   */
-  values(options) {
-    return this.database.getRange(options).map((entry) => entry.value);
-  }
-  /**
-   * Return an iterable of all {key, value} entries in the database.
-   * @param options - (Optional) Range options to filter or order entries.
-   * @returns Iterable of { key, value } objects.
-   */
-  entries(options) {
-    return this.database.getRange(options);
-  }
-  /**
-   * Retrieve database statistics (such as entry count, total size, settings, etc).
-   * @returns An object of LMDB statistics for this database.
-   */
-  stats() {
-    return this.database.getStats();
-  }
-  /**
-   * Close the database and release all resources.
-   * This will also clear the reader check timer.
-   * @returns A promise that resolves when the database is closed.
-   */
-  close() {
-    if (this.readerCheckManager.isRunning()) {
-      this.readerCheckManager.stop();
-    }
-    return this.database.close();
-  }
-};
-var LmdbCacheReader = class extends LmdbCache {
-  static {
-    __name(this, "LmdbCacheReader");
-  }
-  /**
-   * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
-   * @param path - Filesystem directory for the LMDB environment.
-   * @param options - (Optional) Override default options for the LMDB root environment.
-   */
-  constructor(path, options = {}) {
-    super(path, options, true);
-  }
-};
-var LmdbCacheWriter = class extends LmdbCache {
-  static {
-    __name(this, "LmdbCacheWriter");
-  }
-  /**
-   * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
-   * @param path - Filesystem directory for the LMDB environment.
-   * @param options - (Optional) Override default options for the LMDB root environment.
-   */
-  constructor(path, options = {}) {
-    super(path, options, false);
-  }
-  // ===========================================================
-  // Write methods
-  // ===========================================================
-  /**
-   * Insert a new value or update the value for the given key.
-   * @param key - Key to insert or update.
-   * @param value - Value to associate with the key.
-   * @param options - (Optional) Additional put options.
-   */
-  set(key, value) {
-    return this.database.putSync(key, value);
-  }
-  /**
-   * Remove an entry by key (or a specific value if using duplicate keys).
-   * @param key - Key whose entry to remove.
-   * @param valueToRemove - (Optional) Only remove if value matches (for dupSort databases).
-   * @returns true if an entry was deleted, false if not found.
-   */
-  del(key) {
-    return this.database.removeSync(key);
-  }
-  /**
-   * Remove all entries from the database.
-   * @param confirm - Whether to confirm the action.
-   */
-  clear(confirm = false) {
-    if (confirm !== true) {
-      throw new Error("Set confirm to true to clear the database! This action is irreversible.");
-    }
-    this.database.clearSync();
-  }
-  /**
-   * Run a function within a database transaction.
-   * @param fn - The function to execute with transaction context. Must be synchronous. Do NOT `await` inside it!
-   * @returns The result of the provided function.
-   */
-  transaction(fn) {
-    return this.database.transaction(fn);
-  }
-};
+// src/modules/StoreMap.ts
 var StoreMap = class {
   static {
     __name(this, "StoreMap");
   }
   /** The underlying LMDB root database instance */
   database;
-  /** Reader check manager */
-  readerCheckManager;
   /**
    * Constructs a StoreMap and opens (or creates) the root LMDB environment at the specified path.
    * @param path - Filesystem directory for the LMDB environment.
    * @param options - (Optional) Override default options for the LMDB root environment.
-   * @param readOnly - Whether the database should be opened in read-only mode (default: true).
    */
-  constructor(path, options = {}, readOnly = true) {
+  constructor(path, options = {}) {
     this.database = lmdb.open({
       path,
-      // Filesystem path for LMDB environment storage
-      maxDbs: 1,
-      // Only use the root database; no additional sub-databases needed
       maxReaders: 64,
-      // Supports up to 64 simultaneous read transactions
+      // Global reader slots across all processes using this env
       keyEncoding: "ordered-binary",
-      // Ensures keys are ordered binary for efficient range scans and correct key ordering
+      // Stable ordering for range scans (supports string/number/array keys)
       encoding: "msgpack",
-      // Store and retrieve values as JSON (automatic serialization/deserialization)
+      // Fast binary serialization for values
       compression: false,
-      // Compression disabled for best write and read performance
-      mapSize: 64 * 1024 ** 2,
-      // Preallocate 64MB: 10K items ~ 1-10MB max
+      // Disable compression for best throughput/latency
+      mapSize: 512 * 1024 ** 2,
+      // Initial map size (512MB). Increase to 1–4GB if you expect growth
       remapChunks: true,
-      // Let LMDB automatically expand the map size if needed
+      // Grow mapping in chunks (less VA usage; can be slightly slower than full mapping)
       pageSize: 4096,
-      // Use standard 4 KB OS page size for optimal compatibility and IO
+      // 4KB pages (default OS page size; good compatibility)
       noMemInit: true,
-      // Skip memory zeroing for new pages to accelerate allocation (safe in LMDB)
-      commitDelay: 0,
-      // No batch commit operations to increase throughput under load
-      eventTurnBatching: true,
-      // Group multiple async writes in an event loop tick for optimal efficiency
-      noSync: false,
-      // Enable fsync calls for durability on crash
-      noMetaSync: false,
-      // Enable syncing metadata to further boost write speed (lowers durability)
-      cache: true,
-      // Enable small built-in key/value cache to speed up hot key access
+      // Skip zeroing pages for faster allocations (safe with LMDB)
       overlappingSync: false,
-      // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
-      ...options,
-      readOnly
-    });
-    this.readerCheckManager = new ReaderCheckManager(this.database, {
-      periodicMs: 15 * 6e4,
-      // 15 minutes
-      initialCheck: true
+      // Default sync behavior (prefer stability over experimental sync overlap)
+      ...options
     });
   }
   // ===========================================================
@@ -531,12 +149,14 @@ var StoreMap = class {
     return this.database.getKeys(options);
   }
   /** 
-   * Return an iterable over all values, optionally filtered and/or ordered.
+   * Return a generator (as a function) over all values, optionally filtered and/or ordered.
    * @param options - (Optional) Range options (start, end, reverse, etc.).
-   * @returns Iterable of values.
+   * @returns A generator that yields values.
    */
-  values(options) {
-    return this.database.getRange(options).map((entry) => entry.value);
+  *values(options) {
+    for (const { value } of this.database.getRange(options)) {
+      yield value;
+    }
   }
   /**
    * Return an iterable of all {key, value} entries in the database.
@@ -559,9 +179,6 @@ var StoreMap = class {
    * @returns A promise that resolves when the database is closed.
    */
   close() {
-    if (this.readerCheckManager.isRunning()) {
-      this.readerCheckManager.stop();
-    }
     return this.database.close();
   }
 };
@@ -569,13 +186,35 @@ var StoreMapReader = class extends StoreMap {
   static {
     __name(this, "StoreMapReader");
   }
+  /** Reader check manager */
+  readerCheckManager;
   /**
    * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
    * @param path - Filesystem directory for the LMDB environment.
-   * @param options - (Optional) Override default options for the LMDB root environment.
    */
-  constructor(path, options = {}) {
-    super(path, options, true);
+  constructor(path) {
+    super(path, {
+      cache: true,
+      // Enable LMDB cache (helps hot reads)
+      readOnly: true
+      // Open environment in read-only mode
+    });
+    this.readerCheckManager = new ReaderCheckManager(this.database, {
+      periodicMs: 15 * 6e4,
+      // 15 minutes
+      initialCheck: true
+    });
+  }
+  /**
+   * Close the database and release all resources.
+   * This will also clear the reader check timer.
+   * @returns A promise that resolves when the database is closed.
+   */
+  close() {
+    if (this.readerCheckManager.isRunning()) {
+      this.readerCheckManager.stop();
+    }
+    return this.database.close();
   }
 };
 var StoreMapWriter = class extends StoreMap {
@@ -585,10 +224,22 @@ var StoreMapWriter = class extends StoreMap {
   /**
    * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
    * @param path - Filesystem directory for the LMDB environment.
-   * @param options - (Optional) Override default options for the LMDB root environment.
    */
-  constructor(path, options = {}) {
-    super(path, options, false);
+  constructor(path) {
+    super(path, {
+      commitDelay: 5,
+      // Batch commits for ~5ms (raise to 10–25ms for higher throughput)
+      eventTurnBatching: true,
+      // Group writes in same event-loop tick (useful when commitDelay > 0)
+      noSync: false,
+      // fsync on commit (durability preserved)
+      noMetaSync: true,
+      // Skip metadata sync (faster, slight durability tradeoff)
+      cache: true,
+      // Keep true if writer re-reads hot keys; set false if mostly write-only to reduce churn
+      readOnly: false
+      // Open environment in read/write mode
+    });
   }
   // ===========================================================
   // Write methods
@@ -631,10 +282,6 @@ var StoreMapWriter = class extends StoreMap {
   }
 };
 
-exports.LmdbCache = LmdbCache;
-exports.LmdbCacheReader = LmdbCacheReader;
-exports.LmdbCacheWriter = LmdbCacheWriter;
-exports.LmdbMap = LmdbMap;
 exports.StoreMap = StoreMap;
 exports.StoreMapReader = StoreMapReader;
 exports.StoreMapWriter = StoreMapWriter;
