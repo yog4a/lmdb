@@ -4,6 +4,7 @@ const testFiles = [
     'tests/store-manager.test.ts',
     'tests/metadata-manager.test.ts',
     'tests/day-partition-manager.test.ts',
+    'tests/store-map.test.ts',
 ];
 
 for (const file of testFiles) {

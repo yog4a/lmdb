@@ -8,7 +8,7 @@ import { ReaderCheckManager } from '../plugins/ReaderCheckManager.js';
 
 export type StoreMapKey = string | number | (string | number)[];
 
-export type StoreMapOptions = Omit<RootDatabaseOptions, "path" | "readOnly">;
+export type StoreMapOptions = Omit<RootDatabaseOptions, "path">;
 
 // ===========================================================
 // Base Class (Read-only)
@@ -17,46 +17,29 @@ export type StoreMapOptions = Omit<RootDatabaseOptions, "path" | "readOnly">;
 export class StoreMap<K extends StoreMapKey = StoreMapKey, V = any> {
     /** The underlying LMDB root database instance */
     protected readonly database: RootDatabase<V, K>;
-    /** Reader check manager */
-    protected readonly readerCheckManager: ReaderCheckManager;
 
     /**
      * Constructs a StoreMap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
      * @param options - (Optional) Override default options for the LMDB root environment.
-     * @param readOnly - Whether the database should be opened in read-only mode (default: true).
      */
     constructor(
         path: string,
         options: StoreMapOptions = {},
-        readOnly: boolean = true,
     ) {
         // Open the LMDB root environment (creating it if it doesn't exist)
         this.database = open({
-            path: path,                     // Filesystem path for LMDB environment storage
-            maxDbs: 1,                      // Only use the root database; no additional sub-databases needed
-            maxReaders: 64,                 // Supports up to 64 simultaneous read transactions
-            keyEncoding: "ordered-binary",  // Ensures keys are ordered binary for efficient range scans and correct key ordering
-            encoding: "msgpack",            // Store and retrieve values as JSON (automatic serialization/deserialization)
-            compression: false,             // Compression disabled for best write and read performance
-            mapSize: 64 * 1024 ** 2,        // Preallocate 64MB: 10K items ~ 1-10MB max
-            remapChunks: true,              // Let LMDB automatically expand the map size if needed
-            pageSize: 4096,                 // Use standard 4 KB OS page size for optimal compatibility and IO
-            noMemInit: true,                // Skip memory zeroing for new pages to accelerate allocation (safe in LMDB)
-            commitDelay: 0,                 // No batch commit operations to increase throughput under load
-            eventTurnBatching: true,        // Group multiple async writes in an event loop tick for optimal efficiency
-            noSync: false,                  // Enable fsync calls for durability on crash
-            noMetaSync: false,              // Enable syncing metadata to further boost write speed (lowers durability)
-            cache: true,                    // Enable small built-in key/value cache to speed up hot key access
-            overlappingSync: false,         // Use default LMDB sync (no overlapping syncs; favors reliability/stability)
+            path,
+            maxReaders: 64,                // Global reader slots across all processes using this env
+            keyEncoding: "ordered-binary", // Stable ordering for range scans (supports string/number/array keys)
+            encoding: "msgpack",           // Fast binary serialization for values
+            compression: false,            // Disable compression for best throughput/latency
+            mapSize: 512 * 1024 ** 2,      // Initial map size (512MB). Increase to 1–4GB if you expect growth
+            remapChunks: true,             // Grow mapping in chunks (less VA usage; can be slightly slower than full mapping)
+            pageSize: 4096,                // 4KB pages (default OS page size; good compatibility)
+            noMemInit: true,               // Skip zeroing pages for faster allocations (safe with LMDB)
+            overlappingSync: false,        // Default sync behavior (prefer stability over experimental sync overlap)
             ...options,
-            readOnly: readOnly,
-        });
-
-        // Remove any stale reader locks to avoid locking issues
-        this.readerCheckManager = new ReaderCheckManager(this.database, {
-            periodicMs: 15 * 60_000,        // 15 minutes
-            initialCheck: true,
         });
     }
 
@@ -111,12 +94,14 @@ export class StoreMap<K extends StoreMapKey = StoreMapKey, V = any> {
     }
 
     /** 
-     * Return an iterable over all values, optionally filtered and/or ordered.
+     * Return a generator (as a function) over all values, optionally filtered and/or ordered.
      * @param options - (Optional) Range options (start, end, reverse, etc.).
-     * @returns Iterable of values.
+     * @returns A generator that yields values.
      */
-    public values(options?: RangeOptions): RangeIterable<V> {
-        return this.database.getRange(options).map(entry => entry.value);
+    public *values(options?: RangeOptions): Generator<V, void, unknown> {
+        for (const { value } of this.database.getRange(options)) {
+            yield value;
+        }
     }
 
     /**
@@ -142,6 +127,45 @@ export class StoreMap<K extends StoreMapKey = StoreMapKey, V = any> {
      * @returns A promise that resolves when the database is closed.
      */
     public close(): Promise<void> {
+        return this.database.close();
+    }
+}
+
+// ===========================================================
+// Reader Class (extends Base)
+// ===========================================================
+
+export class StoreMapReader<K extends StoreMapKey = StoreMapKey, V = any> extends StoreMap<K, V> {
+    /** Reader check manager */
+    protected readonly readerCheckManager: ReaderCheckManager;
+
+    /**
+     * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
+     * @param path - Filesystem directory for the LMDB environment.
+     */
+    constructor(
+        path: string,
+    ) {
+        super(path, {
+            cache: true,   // Enable LMDB cache (helps hot reads)
+            readOnly: true // Open environment in read-only mode
+        });
+                
+        // Reader locks are only an issue in multi-process read scenarios. 
+        // On a single-process writer, readerCheck is unnecessary overhead. Consider skipping it for the writer:
+        // Remove any stale reader locks to avoid locking issues
+        this.readerCheckManager = new ReaderCheckManager(this.database, {
+            periodicMs: 15 * 60_000,        // 15 minutes
+            initialCheck: true,
+        });
+    }
+
+    /**
+     * Close the database and release all resources.
+     * This will also clear the reader check timer.
+     * @returns A promise that resolves when the database is closed.
+     */
+    public override close(): Promise<void> {
         if (this.readerCheckManager.isRunning()) {
             this.readerCheckManager.stop();
         }
@@ -150,38 +174,25 @@ export class StoreMap<K extends StoreMapKey = StoreMapKey, V = any> {
 }
 
 // ===========================================================
-// Base Class (Read-only)
-// ===========================================================
-
-export class StoreMapReader<K extends StoreMapKey = StoreMapKey, V = any> extends StoreMap<K, V> {
-    /**
-     * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
-     * @param path - Filesystem directory for the LMDB environment.
-     * @param options - (Optional) Override default options for the LMDB root environment.
-     */
-    constructor(
-        path: string,
-        options: StoreMapOptions = {},
-    ) {
-        super(path, options, true);
-    }
-}
-
-// ===========================================================
-// Writer Class (extends Reader)
+// Writer Class (extends Base)
 // ===========================================================
 
 export class StoreMapWriter<K extends StoreMapKey = StoreMapKey, V = any> extends StoreMap<K, V> {
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
-     * @param options - (Optional) Override default options for the LMDB root environment.
      */
     constructor(
         path: string,
-        options: StoreMapOptions = {},
     ) {
-        super(path, options, false);
+        super(path, {
+            commitDelay: 5,                // Batch commits for ~5ms (raise to 10–25ms for higher throughput)
+            eventTurnBatching: true,       // Group writes in same event-loop tick (useful when commitDelay > 0)
+            noSync: false,                 // fsync on commit (durability preserved)
+            noMetaSync: true,              // Skip metadata sync (faster, slight durability tradeoff)
+            cache: true,                   // Keep true if writer re-reads hot keys; set false if mostly write-only to reduce churn
+            readOnly: false                // Open environment in read/write mode
+        });
     }
 
     // ===========================================================
