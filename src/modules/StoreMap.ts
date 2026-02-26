@@ -141,14 +141,17 @@ export class StoreMapReader<K extends StoreMapKey = StoreMapKey, V = any> extend
 
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
-     * @param path - Filesystem directory for the LMDB environment.
+     * @param path - Filesystem directory for the LMDB environment. 
+     * @param options - (Optional) Override default options for the LMDB root environment.
      */
     constructor(
         path: string,
+        options: StoreMapOptions = {},
     ) {
         super(path, {
             cache: true,   // Enable LMDB cache (helps hot reads)
-            readOnly: true // Open environment in read-only mode
+            readOnly: true, // Open environment in read-only mode
+            ...options,
         });
                 
         // Reader locks are only an issue in multi-process read scenarios. 
@@ -181,9 +184,11 @@ export class StoreMapWriter<K extends StoreMapKey = StoreMapKey, V = any> extend
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
+     * @param options - (Optional) Override default options for the LMDB root environment.
      */
     constructor(
         path: string,
+        options: StoreMapOptions = {},
     ) {
         super(path, {
             commitDelay: 5,                // Batch commits for ~5ms (raise to 10–25ms for higher throughput)
@@ -191,7 +196,8 @@ export class StoreMapWriter<K extends StoreMapKey = StoreMapKey, V = any> extend
             noSync: false,                 // fsync on commit (durability preserved)
             noMetaSync: true,              // Skip metadata sync (faster, slight durability tradeoff)
             cache: true,                   // Keep true if writer re-reads hot keys; set false if mostly write-only to reduce churn
-            readOnly: false                // Open environment in read/write mode
+            readOnly: false,                // Open environment in read/write mode
+            ...options,
         });
     }
 
