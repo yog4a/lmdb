@@ -119,8 +119,9 @@ declare class StoreMapReader<K extends StoreMapKey = StoreMapKey, V = any> exten
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
+     * @param options - (Optional) Override default options for the LMDB root environment.
      */
-    constructor(path: string);
+    constructor(path: string, options?: StoreMapOptions);
     /**
      * Close the database and release all resources.
      * This will also clear the reader check timer.
@@ -132,8 +133,9 @@ declare class StoreMapWriter<K extends StoreMapKey = StoreMapKey, V = any> exten
     /**
      * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
      * @param path - Filesystem directory for the LMDB environment.
+     * @param options - (Optional) Override default options for the LMDB root environment.
      */
-    constructor(path: string);
+    constructor(path: string, options?: StoreMapOptions);
     /**
      * Insert a new value or update the value for the given key.
      * @param key - Key to insert or update.

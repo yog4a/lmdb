@@ -188,14 +188,16 @@ var StoreMapReader = class extends StoreMap {
   readerCheckManager;
   /**
    * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
-   * @param path - Filesystem directory for the LMDB environment.
+   * @param path - Filesystem directory for the LMDB environment. 
+   * @param options - (Optional) Override default options for the LMDB root environment.
    */
-  constructor(path) {
+  constructor(path, options = {}) {
     super(path, {
       cache: true,
       // Enable LMDB cache (helps hot reads)
-      readOnly: true
+      readOnly: true,
       // Open environment in read-only mode
+      ...options
     });
     this.readerCheckManager = new ReaderCheckManager(this.database, {
       periodicMs: 15 * 6e4,
@@ -222,8 +224,9 @@ var StoreMapWriter = class extends StoreMap {
   /**
    * Constructs an LMDBmap and opens (or creates) the root LMDB environment at the specified path.
    * @param path - Filesystem directory for the LMDB environment.
+   * @param options - (Optional) Override default options for the LMDB root environment.
    */
-  constructor(path) {
+  constructor(path, options = {}) {
     super(path, {
       commitDelay: 5,
       // Batch commits for ~5ms (raise to 10–25ms for higher throughput)
@@ -235,8 +238,9 @@ var StoreMapWriter = class extends StoreMap {
       // Skip metadata sync (faster, slight durability tradeoff)
       cache: true,
       // Keep true if writer re-reads hot keys; set false if mostly write-only to reduce churn
-      readOnly: false
+      readOnly: false,
       // Open environment in read/write mode
+      ...options
     });
   }
   // ===========================================================
